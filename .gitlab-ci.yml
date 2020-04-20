@@ -8,6 +8,7 @@ default:
       - ~/.gradle
   before_script:
     - git clone https://github.com/oasisfeng/deagle ../deagle
+    - chmod +x ./gradlew
 
 variables:
   UPSTREAM_BRANCH: dev
