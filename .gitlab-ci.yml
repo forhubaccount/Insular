@@ -8,8 +8,9 @@ default:
       - ~/.gradle
   before_script:
     - git clone https://github.com/oasisfeng/deagle ../deagle
-  variable:
-    UPSTREAM_BRANCH: dev
+
+variables:
+  UPSTREAM_BRANCH: dev
 
 LintDebug:
   stage: build
