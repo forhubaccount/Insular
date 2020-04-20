@@ -1,0 +1,44 @@
+include: "https://gitlab.com/accessable-net/gitlab-ci-templates/-/raw/master/scheduled_rebase.yml"
+
+image: circleci/android:api-29
+
+default:
+  cache:
+    paths:
+      - ~/.gradle
+  before_script:
+    - git clone https://github.com/oasisfeng/deagle ../deagle
+  variable:
+    UPSTREAM_BRANCH: dev
+
+LintDebug:
+  stage: build
+  script:
+    - ./gradlew -Pci --console=plain :app:lintDebug -PbuildDir=lint
+
+AssembleDebug:
+  stage: build
+  script:
+    - ./gradlew assembleDebug
+  artifacts:
+    paths:
+      - /app/build/outputs/
+
+DebugTests:
+  stage: test
+  script:
+    - ./gradlew -Pci --console=plain :app:testDebug
+
+AssembleRelease:
+  stage: build
+  script:
+    - echo $KEYSTORE_FILE | base64 -d > my.keystore
+    - ./gradlew assembleRelease
+      -Pandroid.injected.signing.store.file=$(pwd)/my.keystore
+      -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD
+      -Pandroid.injected.signing.key.alias=$KEY_ALIAS
+      -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+  artifacts:
+    paths:
+      - /app/build/outputs/apk/release
+      - CHANGELOG
