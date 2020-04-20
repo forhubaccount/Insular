@@ -1,13 +1,12 @@
 include: "https://gitlab.com/accessable-net/gitlab-ci-templates/-/raw/master/scheduled_rebase.yml"
 
-image: circleci/android:api-29
-
 default:
   cache:
     paths:
       - ~/.gradle
   before_script:
     - git clone https://github.com/oasisfeng/deagle ../deagle
+  image: circleci/android:api-29
 
 variables:
   UPSTREAM_BRANCH: dev
