@@ -22,9 +22,11 @@ public enum Config {
 
 	public String get() {
         switch (key) {
+            // From config_defaults.xml
             case "url_faq":
-                return "https://island.oasisfeng.com/";
+                return "https://island.oasisfeng.com/faq";
             case "url_setup_trouble":
+                return "https://island.oasisfeng.com/faq";
             case "url_setup":
                 return "https://island.oasisfeng.com/setup.html";
             case "url_setup_god_mode":
@@ -32,8 +34,9 @@ public enum Config {
             case "url_file_shuttle":
                 return "https://island.oasisfeng.com/files";
             case "url_coolapk":
-                return "https://www.coolapk.com/"
+                return "https://www.coolapk.com/";
             case "permission_allowed_apps":
+                return "com.oasisfeng.greenify,com.oasisfeng.nevo";
             default:
                 break;
         }
