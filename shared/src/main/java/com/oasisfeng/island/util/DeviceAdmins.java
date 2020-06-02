@@ -42,7 +42,7 @@ public class DeviceAdmins {
 			final ResolveInfo admin = admins.get(0);
 			sDeviceAdminComponent = new ComponentName(Modules.MODULE_ENGINE, admins.get(0).activityInfo.name);
 			if (! admin.activityInfo.enabled) {
-				Analytics.$().event("device_admin_component_disabled").with(ITEM_ID, sDeviceAdminComponent.flattenToShortString()).send();
+				
 				context.getPackageManager().setComponentEnabledSetting(sDeviceAdminComponent, COMPONENT_ENABLED_STATE_ENABLED, DONT_KILL_APP);
 			}
 			return sDeviceAdminComponent;

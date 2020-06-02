@@ -1,9 +1,5 @@
 package com.oasisfeng.island;
 
-import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
-import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
-import com.google.firebase.remoteconfig.FirebaseRemoteConfigValue;
-import com.oasisfeng.island.firebase.FirebaseWrapper;
 import com.oasisfeng.island.shared.BuildConfig;
 import com.oasisfeng.island.shared.R;
 
@@ -25,28 +21,29 @@ public enum Config {
 	PERMISSION_REQUEST_ALLOWED_APPS("permission_allowed_apps");
 
 	public String get() {
-		final FirebaseRemoteConfig config = FirebaseRemoteConfig.getInstance();
-		config.activateFetched();
-		return config.getString(key);
+        switch (key) {
+            case "url_faq":
+                return "https://island.oasisfeng.com/";
+            case "url_setup_trouble":
+            case "url_setup":
+                return "https://island.oasisfeng.com/setup.html";
+            case "url_setup_god_mode":
+                return "https://island.oasisfeng.com/setup.html#manual-setup-for-island-in-god-mode";
+            case "url_file_shuttle":
+                return "https://island.oasisfeng.com/files";
+            case "url_coolapk":
+                return "https://www.coolapk.com/"
+            case "permission_allowed_apps":
+            default:
+                break;
+        }
 	}
 
 	public static boolean isRemote() {
-		final FirebaseRemoteConfig config = FirebaseRemoteConfig.getInstance();
-		config.activateFetched();
-		final FirebaseRemoteConfigValue value = config.getValue(IS_REMOTE.key);
-		return value.getSource() == FirebaseRemoteConfig.VALUE_SOURCE_REMOTE;
+		return false;
 	}
 
 	Config(final String key) { this.key = key; }
 
 	private final String key;
-
-	static {
-		FirebaseWrapper.init();
-		final FirebaseRemoteConfigSettings settings = new FirebaseRemoteConfigSettings.Builder().setDeveloperModeEnabled(BuildConfig.DEBUG).build();
-		final FirebaseRemoteConfig config = FirebaseRemoteConfig.getInstance();
-		config.setConfigSettings(settings);
-		config.setDefaults(R.xml.config_defaults);
-		config.fetch();
-	}
 }

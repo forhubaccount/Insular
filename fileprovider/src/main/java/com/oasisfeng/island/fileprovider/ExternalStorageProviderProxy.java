@@ -236,8 +236,7 @@ public class ExternalStorageProviderProxy extends ContentProvider {
 					return method.invoke(content_service, args);
 				});
 				ContentResolver_sContentService.set(null, proxy);
-			} else Analytics.$().event("esp_proxy_error").with(ITEM_CATEGORY, "content_service_proxy")
-					.with(ITEM_ID, Proxy.getInvocationHandler(content_service).getClass().getCanonicalName()).send();
+			};
 
 			final Context context = context().createPackageContext(target_provider.packageName, CONTEXT_INCLUDE_CODE | CONTEXT_IGNORE_SECURITY);
 			Log.d(TAG, "Initializing " + target_provider.name);
@@ -260,9 +259,9 @@ public class ExternalStorageProviderProxy extends ContentProvider {
 		final ProviderInfo provider = pm.resolveContentProvider(TARGET_AUTHORITY, 0);
 		final String error_event = "esp_error";
 		if (provider != null) {
-			if (! provider.exported) Analytics.$().event(error_event).with(ITEM_CATEGORY, "not exported").send();
+			if (! provider.exported) 
 			else if (! MANAGE_DOCUMENTS.equals(provider.readPermission))
-				Analytics.$().event(error_event).with(ITEM_CATEGORY, "permission").with(ITEM_ID, provider.readPermission).send();
+				
 			else return provider;
 		}
 
@@ -278,10 +277,10 @@ public class ExternalStorageProviderProxy extends ContentProvider {
 			for (final ResolveInfo resolve : resolves) {
 				final String authority = resolve.providerInfo.authority;
 				final String info = resolve.toString();
-				Analytics.$().event(error_event).with(ITEM_CATEGORY, "indistinguishable").with(ITEM_ID, authority + ":" + info).send();
+				
 				Log.w(TAG, ">> " + authority + ": " + info);
 			}
-		} else Analytics.$().event(error_event).with(ITEM_CATEGORY, "authority").with(ITEM_ID, first_resolve.providerInfo.authority).send();
+		} else 
 
 		return first_resolve.providerInfo;
 	}

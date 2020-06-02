@@ -34,7 +34,7 @@ public class ShortcutIcons {
 		final Drawable icon = new IconResizer(icon_size).createIconThumbnail(drawable);	// Resize the app icon in case it's too large. (also avoid TransactionTooLargeException)
 		icon.setBounds(0, 0, icon.getIntrinsicWidth(), icon.getIntrinsicHeight());
 		final Bitmap bitmap = drawableToBitmap(icon);
-		if (bitmap == null) Analytics.$().event("invalid_app_icon").with(ITEM_ID, pkg).with(ITEM_CATEGORY, drawable.getClass().getName()).send();
+		if (bitmap == null) 
 		return bitmap;
 	}
 
