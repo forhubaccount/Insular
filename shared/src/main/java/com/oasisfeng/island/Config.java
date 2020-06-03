@@ -1,7 +1,9 @@
 package com.oasisfeng.island;
 
+
 import com.oasisfeng.island.shared.BuildConfig;
 import com.oasisfeng.island.shared.R;
+
 
 /**
  * Remotely configurable values, (default values are defined in config_defaults.xml)
@@ -9,6 +11,7 @@ import com.oasisfeng.island.shared.R;
  * Created by Oasis on 2016/5/26.
  */
 public enum Config {
+
 
 	/* All keys must be consistent with config_defaults.xml */
 	IS_REMOTE("is_remote"),
@@ -19,6 +22,7 @@ public enum Config {
 	URL_FILE_SHUTTLE("url_file_shuttle"),
 	URL_COOLAPK("url_coolapk"),
 	PERMISSION_REQUEST_ALLOWED_APPS("permission_allowed_apps");
+
 
 	public String get() {
         switch (key) {
@@ -36,29 +40,20 @@ public enum Config {
             case "url_coolapk":
                 return "https://www.coolapk.com/";
             case "permission_allowed_apps":
-   returetu         return "com.oasisfeng.greenify,com.oasisfeng.nevo";
-            default:
-";
-            case "url_coolapk":
-                return "https://www.coolapk.com/";
-            case "permission_allowed_apps":
                 return "com.oasisfeng.greenify,com.oasisfeng.nevo";
             default:
-                return;return;returreturretu
-iles";
-            case "url_coolapk":
-                return "https://www.coolapk.com/";
-            case "permission_allowed_apps":
-                return "com.oasisfeng.greenify,com.oasisfeng.nevo";
-            default:
+                return;
         }
 	}
+
 
 	public static boolean isRemote() {
 		return false;
 	}
 
+
 	Config(final String key) { this.key = key; }
+
 
 	private final String key;
 }
