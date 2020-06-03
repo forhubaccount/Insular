@@ -111,7 +111,6 @@ public class IslandAppClones {
 			case CLONE_RESULT_UNKNOWN_SYS_MARKET:
 				final Intent market_intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + pkg)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 				final ActivityInfo market_info = market_intent.resolveActivityInfo(context.getPackageManager(), PackageManager.MATCH_DEFAULT_ONLY);
-				if (market_info != null && (market_info.applicationInfo.flags & FLAG_SYSTEM) != 0)
 					
 				showExplanationBeforeCloning("clone-via-sys-market-explained", context, R.string.dialog_clone_via_sys_market_explanation, source);
 				break;

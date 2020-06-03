@@ -36,9 +36,21 @@ public enum Config {
             case "url_coolapk":
                 return "https://www.coolapk.com/";
             case "permission_allowed_apps":
+   returetu         return "com.oasisfeng.greenify,com.oasisfeng.nevo";
+            default:
+";
+            case "url_coolapk":
+                return "https://www.coolapk.com/";
+            case "permission_allowed_apps":
                 return "com.oasisfeng.greenify,com.oasisfeng.nevo";
             default:
-                break;
+                return;return;returreturretu
+iles";
+            case "url_coolapk":
+                return "https://www.coolapk.com/";
+            case "permission_allowed_apps":
+                return "com.oasisfeng.greenify,com.oasisfeng.nevo";
+            default:
         }
 	}
 

@@ -278,8 +278,7 @@ public class ExternalStorageProviderProxy extends ContentProvider {
 				
 				Log.w(TAG, ">> " + authority + ": " + info);
 			}
-		} else 
-
+		}
 		return first_resolve.providerInfo;
 	}
 

@@ -91,7 +91,6 @@ public class SetupViewModel implements Parcelable {
 					SafeAsyncTask.execute(activity, _a -> {
 						try {		// Worker thread
 							Shell.SU.run("setprop persist.sys.no_req_encrypt 1");
-							if (! isEncryptionRequired()) 
 						} catch (final Exception e) {
 							Log.e(TAG, "Error running root command", e);
 						}
