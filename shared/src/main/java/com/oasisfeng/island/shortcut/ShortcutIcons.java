@@ -19,8 +19,6 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 import static android.os.Build.VERSION_CODES.O;
-import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_CATEGORY;
-import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_ID;
 
 /**
  * Helper for shortcut icon.

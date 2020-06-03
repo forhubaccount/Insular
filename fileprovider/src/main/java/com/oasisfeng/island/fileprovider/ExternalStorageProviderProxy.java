@@ -48,8 +48,6 @@ import static android.content.Context.CONTEXT_INCLUDE_CODE;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.O;
 import static android.provider.DocumentsContract.PROVIDER_INTERFACE;
-import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_CATEGORY;
-import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_ID;
 
 /**
  * Documents provider for accessing files in / outside Island.

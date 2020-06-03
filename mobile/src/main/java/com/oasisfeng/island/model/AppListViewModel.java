@@ -68,8 +68,6 @@ import java9.util.function.Predicate;
 import java9.util.stream.Collectors;
 import java9.util.stream.StreamSupport;
 
-import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_CATEGORY;
-import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_ID;
 import static java.util.Objects.requireNonNull;
 
 /**

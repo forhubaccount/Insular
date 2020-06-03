@@ -16,7 +16,6 @@ import java.util.List;
 import static android.content.Context.DEVICE_POLICY_SERVICE;
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
 import static android.content.pm.PackageManager.DONT_KILL_APP;
-import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_ID;
 import static java.util.Objects.requireNonNull;
 
 /**

@@ -77,9 +77,6 @@ import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.P;
 import static android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES;
-import static com.oasisfeng.island.analytics.Analytics.Param.CONTENT;
-import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_CATEGORY;
-import static com.oasisfeng.island.analytics.Analytics.Param.LOCATION;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 

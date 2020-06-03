@@ -48,7 +48,6 @@ import java9.util.stream.Collectors;
 import static android.os.Build.VERSION.SDK_INT;
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
 import static android.os.Build.VERSION_CODES.M;
-import static com.oasisfeng.island.analytics.Analytics.Param.CONTENT;
 import static java9.util.stream.Collectors.joining;
 import static java9.util.stream.StreamSupport.stream;
 

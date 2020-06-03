@@ -20,21 +20,8 @@ import androidx.annotation.Size;
 public interface Analytics {
 
 	interface Event {
-		default @CheckResult Event with(final Param key, final @Nullable String value) { return withRaw(key.key, value); }
 		@CheckResult Event withRaw(String key, @Nullable String value);
 		void send();
-	}
-
-	enum Param {
-		ITEM_ID,
-		/** ITEM_CATEGORY and ITEM_NAME cannot be used together (limitation in Google Analytics implementation) */
-		ITEM_NAME,
-		ITEM_CATEGORY,
-		LOCATION,
-		CONTENT,
-		;
-		Param(final @Pattern("^[a-zA-Z][a-zA-Z0-9_]*$") String key) { this.key = key; }
-		final String key;
 	}
 
 	@CheckResult Event event(@Size(min = 1, max = 40) @Pattern("^[a-zA-Z][a-zA-Z0-9_]*$") String event);

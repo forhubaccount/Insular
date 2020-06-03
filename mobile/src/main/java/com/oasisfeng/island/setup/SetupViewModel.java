@@ -47,8 +47,6 @@ import static android.os.Build.VERSION.SDK_INT;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.O;
-import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_ID;
-import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_NAME;
 
 /**
  * View model for setup fragment
