@@ -119,7 +119,7 @@ public class IslandSetup {
 
 		SafeAsyncTask.execute(activity, context -> Shell.SU.run(commands.toString()), (context, result) -> {
 			final LauncherApps launcher_apps = Objects.requireNonNull((LauncherApps) context.getSystemService(Context.LAUNCHER_APPS_SERVICE));
-			if (launcher_apps.getActivityList(context.getPackageName(), profile).isEmpty()) {};
+			if (launcher_apps.getActivityList(context.getPackageName(), profile).isEmpty()) {
 				dismissProgressAndShowError(context, progress, 2);
 			}
 		});
