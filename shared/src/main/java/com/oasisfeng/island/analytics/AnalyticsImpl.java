@@ -39,36 +39,28 @@ class AnalyticsImpl implements Analytics {
 	}
 
 	@Override public Analytics trace(final String key, final String value) {
-		CrashReport.setProperty(key, value);
 		return this;
 	}
 
 	@Override public Analytics trace(final String key, final int value) {
-		CrashReport.setProperty(key, value);
 		return this;
 	}
 
 	@Override public Analytics trace(final String key, final boolean value) {
-		CrashReport.setProperty(key, value);
 		return this;
 	}
 
 	@Override public void report(final Throwable t) {
-		CrashReport.logException(t);
 	}
 
 	@Override public void report(final String message, final Throwable t) {
-		CrashReport.log(message);
-		CrashReport.logException(t);
 	}
 
 	@Override public void reportEvent(final String event, final Bundle params) {
-		CrashReport.log("Event: " + event + " " + params.toString().substring(6));
 	}
 
 	@Override public void setProperty(final Property property, final String value) {
 		mGoogleAnalytics.set("&cd" + property.ordinal() + 1, value);	// Custom dimension (index >= 1)
-		CrashReport.setProperty(property.name, value);
 	}
 
 	private AnalyticsImpl(final Context context) {

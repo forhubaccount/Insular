@@ -14,15 +14,6 @@
                   android:authorities="${applicationId}.internal.1"
                   android:directBootAware="true" tools:targetApi="N"
                   android:exported="false" />
-
-        <!-- Google Analytics (required for devices without GMS) -->
-        <receiver android:name="com.google.android.gms.analytics.AnalyticsReceiver" android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.android.gms.analytics.ANALYTICS_DISPATCH" />
-            </intent-filter>
-        </receiver>
-        <service android:name="com.google.android.gms.analytics.AnalyticsService" android:exported="false" />
-
     </application>
 
 </manifest>
