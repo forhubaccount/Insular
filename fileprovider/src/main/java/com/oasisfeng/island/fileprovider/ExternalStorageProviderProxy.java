@@ -257,10 +257,8 @@ public class ExternalStorageProviderProxy extends ContentProvider {
 		final ProviderInfo provider = pm.resolveContentProvider(TARGET_AUTHORITY, 0);
 		final String error_event = "esp_error";
 		if (provider != null) {
-			if (! provider.exported) 
-			else if (! MANAGE_DOCUMENTS.equals(provider.readPermission))
-				
-			else return provider;
+			if (provider.exported && MANAGE_DOCUMENTS.equals(provider.readPermission))
+				return provider;
 		}
 
 		// In case authority cannot be found, try enumerating documents providers in package of its well-known name. (Fixed authority name is unnecessary for documents provider)
