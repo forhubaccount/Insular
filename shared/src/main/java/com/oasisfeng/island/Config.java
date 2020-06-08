@@ -42,7 +42,7 @@ public enum Config {
             case "permission_allowed_apps":
                 return "com.oasisfeng.greenify,com.oasisfeng.nevo";
             default:
-                return null;
+                return "";
         }
 	}
 
