@@ -18,7 +18,7 @@ import io.fabric.sdk.android.Fabric;
  */
 public abstract class CrashReport {
 
-	private static final boolean DISABLED = BuildConfig.DEBUG && ! BuildConfig.CRASHLYTICS_ENABLED;
+	private static final boolean DISABLED = true;
 
 	static void logException(final Throwable t) { sSingleton.get().logException(t); }
 	static void log(final String message) { sSingleton.get().log(message); }
