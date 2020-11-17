@@ -30,7 +30,7 @@ import static android.content.pm.PackageManager.MATCH_DEFAULT_ONLY;
 public class Modules {
 
 	// Engine is singleton across the device.
-	public static final String MODULE_ENGINE = "com.oasisfeng.island";
+	public static final String MODULE_ENGINE = "org.securesystem.insular";
 
 	public static void broadcast(final Context context, final Intent intent) {
 		if (intent.getComponent() != null || intent.getPackage() != null) throw new IllegalArgumentException("Explicit " + intent);
