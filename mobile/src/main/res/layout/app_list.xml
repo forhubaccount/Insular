@@ -30,9 +30,10 @@
                 android:id="@+id/actionbar"
                 android:layout_width="match_parent"
                 android:layout_height="?android:attr/actionBarSize"
-                android:background="@color/toolbar_background"
-                android:elevation="0dp"
-                android:titleTextColor="@color/textPrimary" />
+                android:background="?android:attr/colorPrimary"
+                android:elevation="4dp"
+                android:theme="@android:style/ThemeOverlay.Material.Dark.ActionBar"
+                android:popupTheme="@style/AppThemeOverlay.Dark.Popup" />
 
             <com.google.android.material.chip.ChipGroup
                 android:id="@+id/chips"

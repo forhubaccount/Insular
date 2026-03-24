@@ -119,6 +119,11 @@
             </intent-filter>
         </receiver>
 
+        <activity android:name="com.oasisfeng.island.settings.SettingsActivity2"
+                  android:label="@string/settings2_title"
+                  android:theme="@style/AppTheme.NoActionBar"
+                  android:parentActivityName="com.oasisfeng.island.MainActivity" />
+
         <activity android:name="com.oasisfeng.island.settings.SettingsActivity"
                   android:label="@string/settings_title"
                   android:theme="@style/AppTheme.Settings"
