@@ -75,27 +75,29 @@ android {
     }
 
     android.applicationVariants.all { variant ->
-        variant.mergeResources.doFirst {
-            variant.sourceSets.each { sourceSet ->
-                sourceSet.res.srcDirs = sourceSet.res.srcDirs.collect { dir ->
-                    def relDir = relativePath(dir)
-                    delete '**/analytics_tracker.xml'
-                    copy {
-                        from(dir)
-                        include '**/*.xml'
-                        filteringCharset = 'UTF-8'
-                        filter {
-                            line -> line
-                                    .replace('Island', 'Insular')
+        variant.mergeResourcesProvider.configure { mergeResourcesTask ->
+            mergeResourcesTask.doFirst {
+                variant.sourceSets.each { sourceSet ->
+                    sourceSet.res.srcDirs = sourceSet.res.srcDirs.collect { dir ->
+                        def relDir = relativePath(dir)
+                        delete '**/analytics_tracker.xml'
+                        copy {
+                            from(dir)
+                            include '**/*.xml'
+                            filteringCharset = 'UTF-8'
+                            filter {
+                                line -> line
+                                        .replace('Island', 'Insular')
+                            }
+                            into("${buildDir}/tmp/${variant.dirName}/${relDir}")
                         }
-                        into("${buildDir}/tmp/${variant.dirName}/${relDir}")
+                        copy {
+                            from(dir)
+                            exclude '**/*.xml'
+                            into("${buildDir}/tmp/${variant.dirName}/${relDir}")
+                        }
+                        return "${buildDir}/tmp/${variant.dirName}/${relDir}"
                     }
-                    copy {
-                        from(dir)
-                        exclude '**/*.xml'
-                        into("${buildDir}/tmp/${variant.dirName}/${relDir}")
-                    }
-                    return "${buildDir}/tmp/${variant.dirName}/${relDir}"
                 }
             }
         }
@@ -116,9 +118,6 @@ android {
         textOutput file('stdout')
     }
 
-    repositories.flatDir {
-        dirs '../app/libs'
-    }
 }
 
 dependencies {
