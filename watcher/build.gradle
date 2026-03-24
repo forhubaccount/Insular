@@ -1,17 +1,14 @@
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
 
 android {
     namespace 'com.oasisfeng.island.watcher'
 
-    compileSdk this.compileSdkVersion
+    compileSdk = this.compileSdkVersion
 
     defaultConfig {
         minSdkVersion this.minSdkVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
-
-    kotlinOptions.jvmTarget = "1.8"
 
     buildFeatures { buildConfig = true }
 
@@ -25,8 +22,8 @@ dependencies {
     implementation project(':shared')
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:$kotlin_coroutine_version"
-    implementation 'androidx.core:core-ktx:1.10.1'
+    implementation 'androidx.core:core-ktx:1.13.1'
 
     testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
 }

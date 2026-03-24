@@ -9,6 +9,7 @@
         <item name="colorAccent">@color/accent</item>
         <item name="android:textColorPrimary">@color/textPrimary</item>
         <item name="materialAlertDialogTheme">@style/Theme.MaterialComponents.DayNight.Dialog.Alert</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item> <!-- Not yet migrated to edge-to-edge -->
     </style>
 
     <style name="AppTheme.Dark" parent="Theme.MaterialComponents">
@@ -20,6 +21,7 @@
     <style name="AppTheme.Settings" parent="Theme.MaterialComponents.DayNight.Bridge"> <!-- These attributes restore the action-bar -->
         <item name="android:windowActionBar">true</item>
         <item name="android:windowNoTitle">false</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item> <!-- Legacy PreferenceActivity not yet migrated to edge-to-edge -->
     </style>
 
     <style name="AppThemeOverlay.Dark.Popup" parent="android:ThemeOverlay.Material.Dark">
@@ -41,6 +43,7 @@
         <!--<item name="android:windowTranslucentStatus">true</item>-->
         <item name="android:colorAccent">@color/accent</item>
         <item name="suwLayoutTheme">@style/SetupIllustrationTheme</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item> <!-- Setup wizard not yet migrated to edge-to-edge -->
     </style>
     <style name="SetupIllustrationTheme">
         <item name="suwBackground">@drawable/setup_header</item>
@@ -50,7 +53,7 @@
     </style>
     <style name="contentContainer">
         <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
         <item name="android:paddingBottom">@dimen/content_padding_bottom</item>
         <item name="android:paddingStart">@dimen/content_padding_start_end</item>
         <item name="android:paddingEnd">@dimen/content_padding_start_end</item>

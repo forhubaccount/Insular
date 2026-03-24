@@ -7,12 +7,17 @@ android {
 
     defaultConfig {
         minSdk = 27
-        targetSdk = 31
     }
 
     buildTypes {
         getByName("release") {
             isMinifyEnabled = true
         }
+    }
+    lint {
+        targetSdk = 35
+    }
+    testOptions {
+        targetSdk = 35
     }
 }

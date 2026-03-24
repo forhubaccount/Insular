@@ -1,17 +1,14 @@
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
 
 android {
     namespace 'com.oasisfeng.island.engine'
 
-    compileSdk this.compileSdkVersion
+    compileSdk = this.compileSdkVersion
 
     defaultConfig {
         minSdkVersion this.minSdkVersion
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
-
-    kotlinOptions.jvmTarget = "1.8"
 
     buildFeatures { buildConfig = true }
 
