@@ -1,17 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Semantic colors -->
-    <color name="textPrimary">@color/primary_dark</color>
-    <color name="textSecondary">@android:color/darker_gray</color>
-    <color name="background">#F3F3F3</color>
-    <color name="header_background">@android:color/white</color>
-    <color name="background_highlight">@android:color/white</color>
+    <color name="textPrimary">#1C1B1F</color>
+    <color name="textSecondary">#49454F</color>
+    <color name="background">#F7F7FB</color>
+    <color name="header_background">#F7F7FB</color>
+    <color name="background_highlight">#E8DEF8</color>
     <color name="card_background">@android:color/white</color>
-    <color name="card_attention">#FFFFE082</color>
+    <color name="card_attention">#FFF3E0</color>
     <color name="card_button">#259B24</color>
-    <!-- Specific colors -->
-    <color name="state_alive">#FF8F00</color>
-    <color name="state_frozen">@color/primary_dark</color>
-    <color name="state_other">@android:color/black</color>
-    <color name="side_control">@color/primary_dark</color>
+    <!-- App state colors -->
+    <color name="state_alive">#E65100</color>
+    <color name="state_frozen">@color/primary</color>
+    <color name="state_other">#49454F</color>
+    <color name="side_control">@color/primary</color>
+    <!-- Surface colors -->
+    <color name="surface_container">#FFFBFE</color>
+    <color name="toolbar_background">@color/background</color>
+    <color name="bottomsheet_background">#1C1B1F</color>
 </resources>

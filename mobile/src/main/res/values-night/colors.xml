@@ -1,17 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Semantic colors -->
-    <color name="textPrimary">@android:color/white</color>
-    <color name="textSecondary">@android:color/darker_gray</color>
-    <color name="background">#121212</color>
-    <color name="header_background">#121212</color>
-    <color name="background_highlight">#2C2C2C</color>  <!-- background + 16% white -->
-    <color name="card_background">#2C2C2C</color>
-    <color name="card_attention">#635732</color>
-    <color name="card_button">#259B24</color>
-    <!-- Specific colors -->
-    <color name="state_alive">#DD6F00</color>
-    <color name="state_frozen">#536dfe</color> <!-- Indigo A400 -->
-    <color name="state_other">@android:color/darker_gray</color>
-    <color name="side_control">#536dfe</color>
+    <color name="textPrimary">#E6E1E5</color>
+    <color name="textSecondary">#CAC4D0</color>
+    <color name="background">#1C1B1F</color>
+    <color name="header_background">#1C1B1F</color>
+    <color name="background_highlight">#332D41</color>
+    <color name="card_background">#2B2930</color>
+    <color name="card_attention">#4A3800</color>
+    <color name="card_button">#66BB6A</color>
+    <!-- App state colors -->
+    <color name="state_alive">#FFB74D</color>
+    <color name="state_frozen">#7986CB</color>
+    <color name="state_other">#CAC4D0</color>
+    <color name="side_control">#7986CB</color>
+    <!-- Surface colors -->
+    <color name="surface_container">#211F26</color>
+    <color name="toolbar_background">@color/background</color>
+    <color name="bottomsheet_background">#2B2930</color>
 </resources>

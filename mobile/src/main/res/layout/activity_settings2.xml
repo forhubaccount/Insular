@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true"
+    android:background="@color/background">
+
+    <Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?android:attr/actionBarSize"
+        android:background="@color/toolbar_background"
+        android:elevation="0dp"
+        android:title="@string/settings2_title"
+        android:titleTextColor="@color/textPrimary"
+        android:navigationIcon="?android:attr/homeAsUpIndicator" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="32dp">
+
+            <!-- ═══ GENERAL ═══ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/pref_general_header"
+                style="@style/Settings2SectionHeader" />
+
+            <include layout="@layout/settings2_item_switch"
+                android:id="@+id/pref_preserve_app_ops" />
+
+            <include layout="@layout/settings2_item_switch"
+                android:id="@+id/pref_show_admin_message" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_launch_shortcut_prefix" />
+
+            <include layout="@layout/settings2_item_switch"
+                android:id="@+id/pref_dynamic_shortcut_label" />
+
+            <include layout="@layout/settings2_item_switch"
+                android:id="@+id/pref_app_settings_helper" />
+
+            <include layout="@layout/settings2_item_switch"
+                android:id="@+id/pref_app_settings_helper_extended" />
+
+            <!-- ═══ PRIVACY ═══ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/pref_privacy_header"
+                style="@style/Settings2SectionHeader" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_read_phone_state" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_read_sms" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_location" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_storage" />
+
+            <!-- ═══ CROSS-PROFILE ═══ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/pref_crossland_header"
+                style="@style/Settings2SectionHeader" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_cross_profile" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_cross_profile_widgets" />
+
+            <!-- ═══ NOTIFICATIONS ═══ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/pref_quick_controls_header"
+                style="@style/Settings2SectionHeader" />
+
+            <include layout="@layout/settings2_item_switch"
+                android:id="@+id/pref_island_watcher" />
+
+            <include layout="@layout/settings2_item_switch"
+                android:id="@+id/pref_app_watcher" />
+
+            <!-- ═══ SETUP ═══ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/pref_setup_header"
+                style="@style/Settings2SectionHeader" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_repair" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_destroy" />
+
+            <!-- ═══ ABOUT ═══ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/pref_about_header"
+                style="@style/Settings2SectionHeader" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_version" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_faq" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_open_source" />
+
+            <include layout="@layout/settings2_item_click"
+                android:id="@+id/pref_licenses" />
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

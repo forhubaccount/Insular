@@ -32,6 +32,7 @@ import com.oasisfeng.island.util.Users.Companion.isParentProfile
 @Suppress("DEPRECATION") class SettingsActivity : android.preference.PreferenceActivity() {
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
+		findViewById<android.view.View>(android.R.id.content).fitsSystemWindows = true
 		val actionBar = actionBar
 		actionBar?.setDisplayHomeAsUpEnabled(true) // Show the Up button in the action bar.
 	}

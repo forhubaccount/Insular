@@ -17,12 +17,13 @@
         <variable name="guide" type="com.oasisfeng.island.guide.UserGuide" />
     </data>
 
-    <androidx.coordinatorlayout.widget.CoordinatorLayout android:layout_width="match_parent" android:layout_height="match_parent" >
+    <androidx.coordinatorlayout.widget.CoordinatorLayout android:layout_width="match_parent" android:layout_height="match_parent" android:fitsSystemWindows="true" >
 
         <com.google.android.material.appbar.AppBarLayout
             android:id="@+id/top_bar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:fitsSystemWindows="true"
             android:background="@color/background">
 
             <Toolbar
@@ -36,7 +37,7 @@
 
             <com.google.android.material.chip.ChipGroup
                 android:id="@+id/chips"
-                android:background="@color/header_background"
+                android:background="@color/background"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingTop="@dimen/margin_small"
@@ -103,9 +104,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             app:layout_behavior="@string/appbar_scrolling_view_behavior"
+            android:paddingTop="4dp"
             android:paddingBottom="88dp"
-            android:paddingStart="-16dp" tools:comment="To workaround the weired tilt side shadow on elevated item"
-            android:paddingEnd="-16dp"
             android:clipToPadding="false"
             android:background="@color/background"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
@@ -156,7 +156,7 @@
             android:layout_height="wrap_content"
             android:paddingBottom="16dp"
             android:theme="@style/AppTheme.Dark"
-            android:background="?android:attr/colorPrimaryDark"
+            android:background="@drawable/bg_bottom_sheet"
             android:elevation="@dimen/elevation_card_raised"
             app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior"
             app:behavior_hideable="true"
@@ -169,7 +169,7 @@
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?android:attr/actionBarSize"
-                android:background="?android:attr/colorPrimaryDark"
+                android:background="@android:color/transparent"
                 android:theme="@android:style/ThemeOverlay.Material.Dark.ActionBar"
                 android:popupTheme="@style/AppThemeOverlay.Dark.Popup"
                 android:title="@{apps.mSelection.info.label}" tools:title="Island"

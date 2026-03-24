@@ -30,6 +30,7 @@ import com.oasisfeng.island.mobile.databinding.AppListBinding;
 import com.oasisfeng.island.model.AppListViewModel;
 import com.oasisfeng.island.model.MainViewModel;
 import com.oasisfeng.island.settings.SettingsActivity;
+import com.oasisfeng.island.settings.SettingsActivity2;
 
 import java.util.Collection;
 
@@ -169,7 +170,8 @@ public class AppListFragment extends Fragment {
 	@Override public boolean onOptionsItemSelected(final MenuItem item) {
 		final int id = item.getItemId();
 		if (id == R.id.menu_filter) mViewModel.mChipsVisible.setValue(! mViewModel.mChipsVisible.getValue());
-		if (id == R.id.menu_settings) startActivity(new Intent(requireActivity(), SettingsActivity.class));
+		if (id == R.id.menu_settings2) startActivity(new Intent(requireActivity(), SettingsActivity2.class));
+		else if (id == R.id.menu_settings) startActivity(new Intent(requireActivity(), SettingsActivity.class));
 		else if (id == R.id.menu_test) TempDebug.run(requireActivity());
 		else return super.onOptionsItemSelected(item);
 		return true;

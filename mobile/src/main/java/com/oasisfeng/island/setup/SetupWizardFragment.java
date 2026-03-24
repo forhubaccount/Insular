@@ -1,5 +1,6 @@
 package com.oasisfeng.island.setup;
 
+import android.app.Activity;
 import android.app.Fragment;
 import android.content.Intent;
 import android.os.Bundle;
@@ -80,6 +81,14 @@ public class SetupWizardFragment extends Fragment implements NavigationBar.Navig
 
 	@Override public void onActivityResult(final int request, final int result, final Intent data) {
 		final SetupViewModel next_vm = SetupViewModel.onActivityResult(getActivity(), request, result);
+		if (next_vm != null) {
+			// Provisioning was cancelled — restore wizard layout if we were showing splash
+			final Activity activity = getActivity();
+			if (activity instanceof SetupActivity && ((SetupActivity) activity).isShowingSplash()) {
+				activity.setContentView(R.layout.activity_main);
+				activity.getFragmentManager().beginTransaction().replace(R.id.container, this).commit();
+			}
+		}
 		showNextFragmentIfNeeded(next_vm);
 	}
 

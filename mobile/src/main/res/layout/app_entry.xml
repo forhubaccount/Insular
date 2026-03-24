@@ -12,19 +12,20 @@
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="56dp"
         android:paddingBottom="2dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:clipToPadding="false" comment:_clipToPadding="Ensure the correct visual effect of elevation"
-        android:background="@{safeUnbox(app.selected) ? @color/background_highlight : @color/background}">
+        android:background="@color/background">
 
         <TextView
             android:id="@+id/entry_name"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingTop="2dp" comment:_paddingTop="Carefully adjusted padding for visually better elevation shadow"
-            android:paddingStart="32dp" comment:_paddingStart_paddingEnd="Actual start/end padding should minus 16dp (the negative parent padding)"
-            android:paddingEnd="32dp"
-            android:background="?android:attr/selectableItemBackground"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:background="@{safeUnbox(app.selected) ? @drawable/bg_entry_selected : @drawable/bg_entry_normal}"
 
             comment:popUpEffect="The 'pop up' effect"
             android:elevation="@{safeUnbox(app.selected) ? @dimen/elevation_card_resting : 0}" tools:elevation="@dimen/elevation_card_resting"

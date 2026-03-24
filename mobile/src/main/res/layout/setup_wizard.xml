@@ -16,6 +16,7 @@
         android:id="@+id/setup_wizard_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:fitsSystemWindows="true"
         style="@style/SetupIllustrationTheme"
         app:suwHeaderText="@string/setup_profile_welcome" >
 
@@ -32,7 +33,7 @@
         <LinearLayout
             android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             style="@style/contentContainer"
             bind:shown="@{setup.message != 0}"
             tools:visibility="gone">
