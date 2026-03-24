@@ -56,7 +56,7 @@ class MainViewModel(app: Application, state: SavedStateHandle): AppListViewModel
 
 	override fun onCleared() {
 		super.onCleared()
-		application.unregisterReceiver(mIslandNameChangeObserver)
+		getApplication<Application>().unregisterReceiver(mIslandNameChangeObserver)
 	}
 
 	private val mIslandNameChangeObserver = receiver { intent ->
