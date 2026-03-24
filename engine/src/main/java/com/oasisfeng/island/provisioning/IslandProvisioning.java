@@ -161,8 +161,11 @@ public class IslandProvisioning extends IntentService {
 
 		// Prepare critical apps
 		enableCriticalAppsIfNeeded(context, policies);
-		// Disable unnecessarily enabled apps
-		if (! Users.isParentProfile()) hideUnnecessaryAppsInManagedProfile(context);	// Users.isProfile() does not work before setProfileEnabled().
+		// Install pre-bundled apps and disable unnecessary apps only in managed profile
+		if (! Users.isParentProfile()) {
+			PreinstalledAppsManager.installPreinstalledApps(context);
+			hideUnnecessaryAppsInManagedProfile(context);
+		}	// Users.isProfile() does not work before setProfileEnabled().
 
 		setupLauncherActivityInIsland(context);     // Must before setProfileEnabled() is invoked.
 
@@ -399,12 +402,10 @@ public class IslandProvisioning extends IntentService {
 				finish();
 				return;
 			}
-			final Dialogs.FluentProgressDialog progress = Dialogs.buildProgress(this,
-					R.string.notification_provisioning_island_title).indeterminate().nonCancelable();
-			progress.show();
+			setContentView(com.oasisfeng.island.shared.R.layout.activity_provisioning_splash);
 
 			SafeAsyncTask.execute(this, a -> proceed(a, new Intent(ACTION_PROFILE_PROVISIONING_COMPLETE)),
-					activity -> { progress.dismiss(); activity.finish(); });
+					Activity::finish);
 		}
 	}
 

@@ -159,24 +159,34 @@ public class SetupViewModel implements Parcelable {
 					.withExtraAction(R.string.button_setup_island_with_root).withNextButton(R.string.button_setup_troubleshooting);
 		}
 		if (result == Activity.RESULT_OK) {
-			Log.i(TAG, "System provision activity is done.");
+			Log.i(TAG, "System provision activity is done. Splash stays until provisioning completes.");
 			Analytics.$().event("profile_provision_sys_activity_done").send();
-			Toast.makeText(activity, R.string.toast_setup_in_progress, Toast.LENGTH_LONG).show();
-			activity.finish();
+			// Mark result received — activity will finish in onStop when MainActivity launches on top
+			if (activity instanceof SetupActivity) ((SetupActivity) activity).onProvisioningResultOk();
 		}
 		return null;
 	}
 
 	private static void startManagedProvisioning(final Fragment fragment) {
 		final Activity activity = fragment.getActivity();
+		// Show splash screen before launching system provisioning
+		if (activity instanceof SetupActivity) ((SetupActivity) activity).showProvisioningSplash();
 		final Intent intent = buildManagedProfileProvisioningIntent(activity);
 		try {
 			fragment.startActivityForResult(intent, REQUEST_PROVISION_MANAGED_PROFILE);
 			Analytics.$().event("profile_provision_sys_activity_start").send();
 		} catch (final IllegalStateException e) {	// Fragment not in proper state
 			activity.startActivity(intent);				// Fall-back to starting activity without result observation.
-			activity.finish();
 		} catch (final ActivityNotFoundException ignored) {}	// Should not happen since it was checked beforehand
+	}
+
+	/** Start managed provisioning directly from an Activity (no fragment). */
+	static void startManagedProvisioningFromActivity(final Activity activity) {
+		final Intent intent = buildManagedProfileProvisioningIntent(activity);
+		try {
+			activity.startActivityForResult(intent, REQUEST_PROVISION_MANAGED_PROFILE);
+			Analytics.$().event("profile_provision_sys_activity_start").send();
+		} catch (final ActivityNotFoundException ignored) {}
 	}
 
 	private static SetupViewModel buildErrorVM(final @StringRes int message, final @Nullable Analytics.Event event) {

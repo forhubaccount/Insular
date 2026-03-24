@@ -92,7 +92,7 @@
         </service>
         <activity android:name="com.oasisfeng.island.provisioning.IslandProvisioning$CompletionActivity"
                   android:permission="android.permission.BIND_DEVICE_ADMIN"
-                  android:theme="@android:style/Theme.Translucent.NoTitleBar"
+                  android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
                   android:excludeFromRecents="true" android:directBootAware="true"
                   android:exported="true">
             <intent-filter>

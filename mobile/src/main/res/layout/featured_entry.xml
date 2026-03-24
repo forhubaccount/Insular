@@ -14,9 +14,10 @@
         android:layout_marginStart="@dimen/margin_medium"
         android:layout_marginEnd="@dimen/margin_medium"
         android:layout_marginTop="@dimen/margin_small"
-        android:layout_marginBottom="0dp"
-        android:elevation="@dimen/elevation_card_resting"
-        app:contentPadding="@dimen/card_content_padding"
+        android:layout_marginBottom="4dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="1dp"
+        app:contentPadding="16dp"
         app:cardBackgroundColor="@{safeUnbox(vm.dismissed) ? @color/background : @color/card_background}">
 
         <RelativeLayout

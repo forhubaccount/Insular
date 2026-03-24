@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notification_provisioning_island_title">Настройка рабочего профиля\u2026</string>
+    <string name="notification_provisioning_mainland_title">Настройка основного профиля\u2026</string>
+    <string name="notification_provisioning_text">Это может занять несколько минут.</string>
+    <string name="toast_setup_complete">Настройка завершена.</string>
+    <string name="toast_reprovision_done">Восстановление завершено.</string>
+</resources>

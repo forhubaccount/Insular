@@ -23,4 +23,16 @@
     <string name="default_island2_name">Atlantis</string>
     <string name="default_island3_name">Penglai</string>
     <string name="default_islandN_name">Island %d</string>
+
+    <string name="welcome_title">Island</string>
+    <string name="welcome_subtitle">Secure app isolation</string>
+    <string name="welcome_license_header">License Agreement</string>
+    <string name="welcome_license_text">This application is free and open-source software, distributed under the Apache License, Version 2.0.\n\nBased on Insular by Peter Cxy and Island by Oasis Feng.\n\nYou may use, copy, modify and distribute this software freely, provided that you include the original copyright notice and this license in any copies or derivative works.\n\nTHIS SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTIES OF ANY KIND. The authors are not liable for any damages arising from its use.\n\nThe app creates an isolated work profile on your device using Android for Work. Apps inside the profile cannot access your personal data (contacts, call logs, files) even if permissions are granted.\n\nThe app does not collect, transmit or store any personal data. All processing happens locally on your device.\n\nThis is a community-maintained project. Donations are welcome and help keep the project alive.\n\nFull license text: https://www.apache.org/licenses/LICENSE-2.0</string>
+    <string name="welcome_accept">Accept and continue</string>
+    <string name="welcome_open_source_note">Open source \u00B7 Apache 2.0 \u00B7 Community project</string>
+
+    <string name="provisioning_splash_title">Secure space is being created</string>
+    <string name="provisioning_splash_subtitle">Keep unsafe apps in an isolated space.\nYour data stays protected.</string>
+    <string name="provisioning_splash_status">Setting up and granting permissions\u2026</string>
+    <string name="provisioning_splash_tip">This may take a minute. Please don\'t turn off the screen.</string>
 </resources>
