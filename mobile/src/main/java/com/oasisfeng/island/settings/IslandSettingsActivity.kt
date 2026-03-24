@@ -267,6 +267,7 @@ class IslandSettingsActivity: CallerAwareActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        findViewById<android.view.View>(android.R.id.content).fitsSystemWindows = true
         if (callingPackage != packageName) actionBar?.setDisplayOptions(0, ActionBar.DISPLAY_SHOW_HOME)
         else actionBar?.setDisplayOptions(ActionBar.DISPLAY_HOME_AS_UP, ActionBar.DISPLAY_HOME_AS_UP)
         fragmentManager.beginTransaction().replace(android.R.id.content, IslandSettingsFragment()).commit()

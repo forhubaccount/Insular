@@ -1,18 +1,15 @@
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-parcelize'
 
 android {
     namespace 'com.oasisfeng.island.installer'
 
-    compileSdk this.compileSdkVersion
+    compileSdk = this.compileSdkVersion
 
     defaultConfig {
         minSdkVersion this.minSdkVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
-
-    kotlinOptions.jvmTarget = "1.8"
 
     buildFeatures { buildConfig = true }
 

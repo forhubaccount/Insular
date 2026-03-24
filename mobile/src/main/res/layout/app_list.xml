@@ -17,12 +17,13 @@
         <variable name="guide" type="com.oasisfeng.island.guide.UserGuide" />
     </data>
 
-    <androidx.coordinatorlayout.widget.CoordinatorLayout android:layout_width="match_parent" android:layout_height="match_parent" >
+    <androidx.coordinatorlayout.widget.CoordinatorLayout android:layout_width="match_parent" android:layout_height="match_parent" android:fitsSystemWindows="true" >
 
         <com.google.android.material.appbar.AppBarLayout
             android:id="@+id/top_bar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:fitsSystemWindows="true"
             android:background="@color/background">
 
             <Toolbar

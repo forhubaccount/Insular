@@ -17,7 +17,7 @@ else {
 android {
     namespace 'com.oasisfeng.island'
 
-    compileSdk this.compileSdkVersion
+    compileSdk = this.compileSdkVersion
 
     defaultConfig {
         applicationId "com.oasisfeng.island"
@@ -74,6 +74,8 @@ android {
         }
     }
 
+    // Resource rebranding: replace "Island" with "Insular" in all XML resources.
+    // Requires android.newDsl=false in gradle.properties for applicationVariants API.
     android.applicationVariants.all { variant ->
         variant.mergeResourcesProvider.configure { mergeResourcesTask ->
             mergeResourcesTask.doFirst {

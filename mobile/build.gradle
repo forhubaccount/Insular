@@ -1,11 +1,10 @@
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 android {
     namespace 'com.oasisfeng.island.mobile'
 
-    compileSdk this.compileSdkVersion
+    compileSdk = this.compileSdkVersion
 
     defaultConfig {
         minSdkVersion this.minSdkVersion
@@ -18,9 +17,6 @@ android {
         dataBinding true
         compose true
     }
-
-
-    kotlinOptions.jvmTarget = "1.8"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
