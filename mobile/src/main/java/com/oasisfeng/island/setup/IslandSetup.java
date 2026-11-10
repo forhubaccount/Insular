@@ -1,5 +1,11 @@
 package com.oasisfeng.island.setup;
 
+import static com.oasisfeng.island.analytics.Analytics.Param.CONTENT;
+import static java.lang.Boolean.FALSE;
+import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -26,6 +32,7 @@ import com.oasisfeng.hack.Hack;
 import com.oasisfeng.island.analytics.Analytics;
 import com.oasisfeng.island.mobile.BuildConfig;
 import com.oasisfeng.island.mobile.R;
+import com.oasisfeng.island.shuttle.Shuttle;
 import com.oasisfeng.island.util.DeviceAdmins;
 import com.oasisfeng.island.util.DevicePolicies;
 import com.oasisfeng.island.util.Hacks;
@@ -42,11 +49,6 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import eu.chainfire.libsuperuser.Shell;
-
-import static com.oasisfeng.island.analytics.Analytics.Param.CONTENT;
-import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
 
 /**
  * Implementation of Island / Mainland setup & shutdown.
@@ -143,9 +145,9 @@ public class IslandSetup {
 					try {
 						final DevicePolicies policies = new DevicePolicies(activity);
 						final AppListProvider<AppInfo> provider = AppListProvider.getInstance(activity);
-						final Stream<AppInfo> apps = provider.installedAppsInOwnerUser();
+						final Stream<AppInfo> apps = provider.installedAppsInOwnerUser().stream();
 
-						final List<String> frozen_pkgs = apps.filter(AppInfo::isHidden).map(app -> app.packageName).collect(toList());
+						final List<String> frozen_pkgs = apps.filter(app -> app.isHidden()).map(app -> app.packageName).collect(toList());
 						for (final String pkg : frozen_pkgs)
 							policies.setApplicationHidden(pkg, false);
 
@@ -176,17 +178,24 @@ public class IslandSetup {
 	}
 
 	@ProfileUser public static void requestProfileRemoval(final Activity activity) {
-		if (Users.isOwner()) throw new IllegalStateException("Must be called in managed profile");
-		if (! DevicePolicies.isProfileOwner(activity, Users.current())) {
+		if (Users.isParentProfile()) throw new IllegalStateException("Must be called in managed profile");
+		if (! new DevicePolicies(activity).isProfileOwner()) {
 			showPromptForProfileManualRemoval(activity);
 			return;
 		}
-		new AlertDialog.Builder(activity).setTitle(R.string.dialog_title_warning).setNeutralButton(R.string.action_destroy, (dd, ww) -> {
-			if (! DevicePolicies.isProfileOwner(activity, Users.owner)) destroyProfile(activity);
-			else new AlertDialog.Builder(activity).setTitle(R.string.dialog_title_warning).setMessage(R.string.dialog_destroy_message_for_managed_user)
-					.setNeutralButton(R.string.action_destroy, (d, w) -> destroyProfile(activity))
-					.setPositiveButton(android.R.string.no, null).show();
-		}).setMessage(R.string.dialog_destroy_message).setPositiveButton(android.R.string.no, null).show();
+		new AlertDialog.Builder(activity).setTitle(R.string.dialog_title_warning)
+				.setMessage(R.string.dialog_destroy_message)
+				.setPositiveButton(android.R.string.no, null)
+				.setNeutralButton(R.string.action_destroy, (dd, ww) -> requestProfileRemovalConfirmed(activity)).show();
+	}
+
+	private static void requestProfileRemovalConfirmed(final Activity activity) {
+		if (new Shuttle(activity, Users.getParentProfile()).invokeNoThrows(c -> new DevicePolicies(c).isProfileOwner()) == FALSE)
+			destroyProfile(activity);
+		else new AlertDialog.Builder(activity).setTitle(R.string.dialog_title_warning)
+				.setMessage(R.string.dialog_destroy_message_for_managed_user)
+				.setPositiveButton(android.R.string.no, null)
+				.setNeutralButton(R.string.action_destroy, (d, w) -> destroyProfile(activity)).show();
 	}
 
 	private static void showPromptForProfileManualRemoval(final Activity activity) {
@@ -201,7 +210,7 @@ public class IslandSetup {
 	}
 
 	@ProfileUser private static void destroyProfile(final Activity activity) {
-		if (Users.isOwner()) throw new IllegalStateException("Must be called in managed profile.");
+		if (Users.isParentProfile()) throw new IllegalStateException("Must be called in managed profile.");
 		final DevicePolicies policies = new DevicePolicies(activity);
 		try {
 			policies.execute(DevicePolicyManager::clearCrossProfileIntentFilters);
@@ -210,4 +219,46 @@ public class IslandSetup {
 			showPromptForProfileManualRemoval(activity);
 		}
 	}
+//
+//	private static void activateManagedMainlandOrShowSetupGuide(final Activity activity, final int request_code) {
+//		//<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+//		//<root>
+//		//<profile-owner package="com.oasisfeng.island" name="" component="com.oasisfeng.island/com.oasisfeng.island.IslandDeviceAdminReceiver" userRestrictionsMigrated="true" />
+//		//</root>
+//		String content = "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<device-owner package=\"" + Modules.MODULE_ENGINE + "\" />";
+//		final String admin_component = DeviceAdmins.getComponentName(activity).flattenToString();
+//		if (file.exists()) return;
+//		content += "<profile-owner package=\"" + Modules.MODULE_ENGINE + "\" name=\"Island\" userId=\"" + Users.toId(Users.profile)
+//					+ "\" component=\"" + admin_component + "\" />";
+//		content = content.replace("\"", "\\\"").replace("'", "\\'")
+//				.replace("<", "\\<").replace(">", "\\>");
+//
+//		final String file = new File(getDataSystemDirectory(), "device_owner.xml").getAbsolutePath();
+//		final String command = "echo " + content + " > " + file + " && chmod 600 " + file
+//				+ " && chown system:system " + file + " && dpm set-active-admin " + admin_component + " ; echo DONE";
+//		SafeAsyncTask.execute(activity, context -> Shell.SU.run(command), (context, output) -> {
+//			if (output == null || output.isEmpty()) {
+//				Toast.makeText(context, R.string.toast_setup_mainland_non_root, Toast.LENGTH_LONG).show();
+//				WebContent.view(context, Uri.parse(Config.URL_SETUP_MANAGED_MAINLAND.get()));
+//				return;
+//			}
+//			if (! "DONE".equals(output.get(output.size() - 1))) {
+//				Analytics.$().event("setup_mainland_root").with(CONTENT, String.join("\n", output)).send();
+//				Toast.makeText(context, R.string.toast_setup_mainland_root_failed, Toast.LENGTH_LONG).show();
+//				return;
+//			}
+//			Analytics.$().event("setup_mainland_root").with(CONTENT, output.size() == 1/* DONE */? null : String.join("\n", output)).send();
+//			// Start the device-admin activation UI (no-op if already activated with root above), since "dpm set-active-admin" is not supported on Android 5.0.
+//			activity.startActivityForResult(new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
+//					.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, DeviceAdmins.getComponentName(context))
+//					.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, activity.getString(R.string.dialog_mainland_device_admin)), request_code);
+//			// Procedure is followed in onAddAdminResult().
+//		});
+//	}
+
+//	private static File getDataSystemDirectory() {
+//		if (Hacks.Environment_getDataSystemDirectory != null) return Hacks.Environment_getDataSystemDirectory.invoke().statically();
+//		final String data_path = System.getenv("ANDROID_DATA");
+//		return new File(data_path == null ? new File("/data") : new File(data_path), "system");
+//	}
 }

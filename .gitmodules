@@ -1,0 +1,8 @@
+[submodule "libs/deagle"]
+	path = libs/deagle
+	url = https://gitlab.com/secure-system/deagle.git
+	branch = dev-ci
+[submodule "libs/setup-wizard"]
+	path = libs/setup-wizard
+	url = https://gitea.angry.im/PeterCxy/SetupWizardLibrary.git
+	branch = main

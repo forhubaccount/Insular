@@ -1,29 +1,29 @@
 package com.oasisfeng.island.adb;
 
+import static android.os.UserManager.DISALLOW_DEBUGGING_FEATURES;
+import static android.preference.PreferenceManager.getDefaultSharedPreferences;
+import static java.util.Objects.requireNonNull;
+
 import android.Manifest;
 import android.app.Application;
 import android.app.admin.DevicePolicyManager;
 import android.content.Context;
-import android.content.Intent;
 import android.os.UserManager;
 import android.provider.Settings;
 import android.widget.Toast;
 
 import androidx.fragment.app.FragmentActivity;
 
+import com.oasisfeng.android.provider.SettingsUtils;
 import com.oasisfeng.android.ui.Snackbars;
 import com.oasisfeng.island.analytics.Analytics;
 import com.oasisfeng.island.data.LiveUserRestriction;
 import com.oasisfeng.island.mobile.R;
 import com.oasisfeng.island.security.SecurityPrompt;
-import com.oasisfeng.island.shuttle.MethodShuttle;
+import com.oasisfeng.island.shuttle.Shuttle;
 import com.oasisfeng.island.util.DevicePolicies;
 import com.oasisfeng.island.util.Permissions;
 import com.oasisfeng.island.util.Users;
-
-import static android.os.UserManager.DISALLOW_DEBUGGING_FEATURES;
-import static android.preference.PreferenceManager.getDefaultSharedPreferences;
-import static java.util.Objects.requireNonNull;
 
 /**
  * Created by Oasis on 2019-5-24.
@@ -46,22 +46,23 @@ public class AdbSecure {
 			} else policies.execute(DevicePolicyManager::addUserRestriction, DISALLOW_DEBUGGING_FEATURES);
 		}
 
-		if (Users.hasProfile() && ! requireNonNull(activity.getSystemService(UserManager.class)).isQuietModeEnabled(Users.profile)) {
+		if (Users.hasProfile() && ! requireNonNull(activity.getSystemService(UserManager.class)).isQuietModeEnabled(Users.profile)) {   // TODO: Support multiple Islands
 			final Context app_context = activity.getApplicationContext();
-			MethodShuttle.runInProfile(activity, context -> {
-				final DevicePolicies device_policies = new DevicePolicies(context);	// The "policies" instance can not be passed into profile.
-				if (enabling) device_policies.execute(DevicePolicyManager::addUserRestriction, DISALLOW_DEBUGGING_FEATURES);
-				else device_policies.execute(DevicePolicyManager::clearUserRestriction, DISALLOW_DEBUGGING_FEATURES);
-				return enabling;
-			}).whenComplete((enabled, e) -> {
-				if (e != null) {
-					Analytics.$().logAndReport(TAG, "Error setting featured button", e);
-					Toast.makeText(app_context, R.string.toast_internal_error, Toast.LENGTH_LONG).show();
-				} else {
-					LiveUserRestriction.notifyUpdate(app_context);	// Request explicit update, since observer does not work across users.
-					showPromptForAdbSecureProtection(activity, enabled);
-				}
-			});
+			final boolean enabled;
+			try {
+				enabled = new Shuttle(activity, Users.profile).invoke(context -> {
+					final DevicePolicies device_policies = new DevicePolicies(context);    // The "policies" instance can not be passed into profile.
+					if (enabling) device_policies.execute(DevicePolicyManager::addUserRestriction, DISALLOW_DEBUGGING_FEATURES);
+					else device_policies.execute(DevicePolicyManager::clearUserRestriction, DISALLOW_DEBUGGING_FEATURES);
+					return enabling;
+				});
+			} catch(final RuntimeException e) {
+				Analytics.$().logAndReport(TAG, "Error setting featured button", e);
+				Toast.makeText(app_context, R.string.toast_internal_error, Toast.LENGTH_LONG).show();
+				return;
+			}
+			LiveUserRestriction.notifyUpdate(app_context);	// Request explicit update, since observer does not work across users.
+			showPromptForAdbSecureProtection(activity, enabled);
 		} else showPromptForAdbSecureProtection(activity, enabling);
 	}
 
@@ -83,7 +84,7 @@ public class AdbSecure {
 					policies.execute(DevicePolicyManager::setGlobalSetting, Settings.Global.ADB_ENABLED, "1");
 				else if (Permissions.has(activity, Manifest.permission.WRITE_SECURE_SETTINGS))
 					Settings.Global.putInt(activity.getContentResolver(), Settings.Global.ADB_ENABLED, 1);
-				else activity.startActivity(new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS));
+				else SettingsUtils.launchActivity(activity, Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, "enable_adb"); // AbstractEnableAdbPreferenceController.KEY_ENABLE_ADB
 			} catch (final RuntimeException e) {
 				Toast.makeText(activity, R.string.prompt_operation_failure_due_to_incompatibility, Toast.LENGTH_LONG).show();
 				Analytics.$().logAndReport(TAG, "Error enabling ADB debugging", e);

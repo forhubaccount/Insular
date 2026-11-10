@@ -20,6 +20,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.databinding.CallbackRegistry;
 
+import com.oasisfeng.android.util.Apps;
 import com.oasisfeng.android.util.Suppliers;
 
 import java.util.ArrayList;
@@ -30,11 +31,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 /**
  * Provider for installed apps
- *
+ * <p>
  * Created by Oasis on 2016/7/6.
  */
 public abstract class AppListProvider<T extends AppInfo> extends ContentProvider {
@@ -56,11 +56,11 @@ public abstract class AppListProvider<T extends AppInfo> extends ContentProvider
 			@SuppressWarnings("unchecked") final T casted = (T) provider;
 			return casted;
 		} finally {
-			client.release();
+			client.close();
 		}
 	}
 
-	public Stream<T> installedAppsInOwnerUser() { return mAppMap.get().values().stream(); }
+	public Collection<T> installedAppsInOwnerUser() { return mAppMap.get().values(); }
 
 	public T get(final String pkg) { return mAppMap.get().get(pkg); }
 
@@ -90,8 +90,25 @@ public abstract class AppListProvider<T extends AppInfo> extends ContentProvider
 		context().registerReceiver(mPackagesEventsObserver, pkgs_filter);
 
 		//noinspection WrongConstant
-		for (final ApplicationInfo app : context().getPackageManager().getInstalledApplications(PM_FLAGS_APP_INFO))
-			apps.put(app.packageName, createEntry(app, null));
+		PackageManager pm = context().getPackageManager();
+		for (final ApplicationInfo app : pm.getInstalledApplications(PM_FLAGS_APP_INFO))
+			if (! isInvalidPackage(pm, app)) apps.put(app.packageName, createEntry(app, null));
+	}
+
+	/** Currently this only detects static library package (e.g. "com.google.android.trichromelibrary") */
+	private boolean isInvalidPackage(final PackageManager pm, final ApplicationInfo app) {
+		final Integer privateFlags = null;
+		if ((privateFlags == null || privateFlags == 0) && app.sourceDir == null && app.targetSdkVersion == 0
+				&& app.labelRes == 0 && app.nonLocalizedLabel == null && app.name == null
+				&& AppInfo.isHidden(app) == Boolean.FALSE && app.enabled)
+			try {
+				pm.getApplicationInfo(app.packageName, 0);  // Invalid app is invisible without MATCH_UNINSTALLED_PACKAGES.
+				Log.w(TAG, "Valid app: " + app.packageName);
+			} catch (PackageManager.NameNotFoundException e) {
+				Log.i(TAG, "Skip invalid app: " + app.packageName);
+				return true;
+			}
+		return false;
 	}
 
 	private void onPackageEvent(final String pkg) {
@@ -149,7 +166,7 @@ public abstract class AppListProvider<T extends AppInfo> extends ContentProvider
 		final T entry = mAppMap.get().get(pkg);
 		if (entry == null) return;
 		Log.d(TAG, "Label updated for " + pkg + ": " + label);
-		final T new_entry = createEntry(entry, entry);	// In createEntry(), label is reloaded from the label cache.
+		@SuppressWarnings("unchecked") final T new_entry = (T) entry.cloneWithLabel(label);
 		mAppMap.get().put(pkg, new_entry);
 		notifyUpdate(Collections.singleton(new_entry));
 	}

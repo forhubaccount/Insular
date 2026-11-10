@@ -22,27 +22,28 @@ import java.util.Comparator;
 public class AppViewModel extends BaseAppViewModel implements ObservableSortedList.Sortable<AppViewModel> {
 
 	public enum State {
+		Pending(0),     // Being cloned
 		Alive(1),
 		Frozen(2),
-		Disabled(3),	// System app only
-		Uninstalled(4),	// System app only
-		Unknown(5);
+		Disabled(3),    // System app only
+		Uninstalled(4); // System app only
 
 		State(final int order) { this.order = order; }
 		final int order;
 	}
 
 	private State checkState() {
-		if (! info().isInstalled()) return State.Uninstalled;
-		if (! info().shouldShowAsEnabled()) return State.Disabled;
-		if (info().isHidden()) return State.Frozen;
+		final IslandAppInfo info = info();
+		if (! info.isInstalled()) return info.isPlaceHolder() ? State.Pending : State.Uninstalled;
+		if (! info.shouldShowAsEnabled()) return State.Disabled;
+		if (info.isHidden()) return State.Frozen;
 		return State.Alive;
 	}
 
 	public CharSequence getStatusText(final Context context) {
 		final IslandAppInfo app = info();
 		final StringBuilder status = new StringBuilder();
-		if (! app.isInstalled()) status.append(context.getString(R.string.status_uninstalled));
+		if (! app.isInstalled()) status.append(context.getString(app.isPlaceHolder() ? R.string.status_pending : R.string.status_uninstalled));
 		else if (! app.enabled) status.append(context.getString(R.string.status_disabled));
 		else if (app.isHidden()) status.append(context.getString(R.string.status_frozen));
 		else status.append(context.getString(R.string.status_alive));
@@ -50,7 +51,7 @@ public class AppViewModel extends BaseAppViewModel implements ObservableSortedLi
 		final StringBuilder appendixes = new StringBuilder();
 		if (isSystem()) appendixes.append(", ").append(context.getString(R.string.status_appendix_system));
 		if (app.isCritical()) appendixes.append(", ").append(context.getString(R.string.status_appendix_critical));
-		if (Users.isOwner(app.user)) {
+		if (Users.isParentProfile(app.user)) {
 			if (! exclusive) appendixes.append(", ").append(context.getString(R.string.status_appendix_cloned));
 		} else if (exclusive) appendixes.append(", ").append(context.getString(R.string.status_appendix_exclusive));
 		if (BuildConfig.DEBUG && app.isSuspended()) appendixes.append(", suspended");     // TODO
@@ -59,10 +60,6 @@ public class AppViewModel extends BaseAppViewModel implements ObservableSortedLi
 	}
 
 	public IslandAppInfo info() { return (IslandAppInfo) info; }
-
-	public String getDebugInfo() {
-		return "NULL";
-	}
 
 	public final State state;
 

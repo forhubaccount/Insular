@@ -1,16 +1,18 @@
-<manifest package="com.oasisfeng.island.mobile" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" >
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" >
 
     <uses-feature android:name="android.software.device_admin" android:required="true" />
     <uses-feature android:name="android.software.managed_users" android:required="true" />
 
     <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />   <!-- AppLaunchShortcut -->
     <uses-permission android:name="com.android.launcher.permission.UNINSTALL_SHORTCUT" /> <!-- AppLaunchShortcut -->
-    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" tools:ignore="ProtectedPermissions" /> <!-- ServiceShuttle and more -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" tools:ignore="ProtectedPermissions" /> <!-- IslandFiles -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" /> <!-- Not yet used -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" /> <!-- UninstallHelper.UninstallReceiver -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" /> <!-- Required to start ACTION_UNINSTALL_PACKAGE since Android P -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application android:label="Island - Mobile"
                  android:icon="@mipmap/ic_launcher"
@@ -23,7 +25,8 @@
         <!-- <meta-data android:name="com.google.android.actions" android:resource="@xml/actions" /> -->
 
         <!-- windowSoftInputMode="adjustPan" to avoid bottom-sheet hanging in the center of screen when search is finished and IME panel is closed. -->
-        <activity android:name="com.oasisfeng.island.MainActivity" android:windowSoftInputMode="adjustPan">
+        <activity android:name="com.oasisfeng.island.MainActivity" android:windowSoftInputMode="adjustPan"
+            android:exported="true" android:directBootAware="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -48,6 +51,7 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:clearTaskOnLaunch="true"
             android:taskAffinity=":shortcut"
+            android:exported="true"
             android:launchMode="singleTask" > <!-- Most important attribute: launchMode="singleTask" -->
             <intent-filter>
                 <action android:name="com.oasisfeng.island.action.LAUNCH_APP" />
@@ -61,24 +65,26 @@
 
         <!--<activity android:name="android.__dummy__" android:exported="true" android:icon="@mipmap/ic_dummy" />-->
 
-        <service android:name="com.oasisfeng.island.shortcut.IslandAppShortcut$ShortcutUpdater"
-                 android:exported="false" android:enabled="@bool/since_api_26">
+        <service android:name="com.oasisfeng.island.shortcut.IslandAppShortcut$ShortcutSyncService"
+                 android:exported="false" android:enabled="@bool/since_api_26" tools:targetApi="26">
             <intent-filter>
                 <action android:name="com.oasisfeng.island.PersistentService" />
             </intent-filter>
         </service>
 
-        <receiver android:name="com.oasisfeng.island.shortcut.ShortcutsRepairer">
+        <receiver android:name="com.oasisfeng.island.shortcut.ShortcutsUpdater" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MANAGED_PROFILE_REMOVED" /> <!-- Registered receiver only, delegate by DeviceAdminReceiver -->
             </intent-filter>
         </receiver>
 
         <activity android:name="com.oasisfeng.island.setup.SetupActivity" android:theme="@style/SetupTheme" />
 
         <activity android:name="com.oasisfeng.island.action.FeatureActionActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"
-                  android:excludeFromRecents="true">
+                  android:excludeFromRecents="true" android:exported="true">
             <intent-filter> <!-- Deep-link for App Actions -->
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -92,21 +98,21 @@
                   android:exported="false"
                   android:multiprocess="true" />
 
-        <receiver android:name="com.oasisfeng.island.adb.ProfileRestrictionsSync" android:directBootAware="true">
+        <receiver android:name="com.oasisfeng.island.adb.ProfileRestrictionsSync" android:directBootAware="true" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 
-        <receiver android:name="com.oasisfeng.island.settings.IslandSettingsActivity$Enabler"> <!-- Enable IslandSettingsActivity then disable self -->
+        <receiver android:name="com.oasisfeng.island.settings.IslandSettingsActivity$Enabler" android:exported="false"> <!-- Enable IslandSettingsActivity then disable self -->
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.USER_INITIALIZE" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 
-        <receiver android:name="com.oasisfeng.island.settings.IslandNameManager$NameInitializer"
+        <receiver android:name="com.oasisfeng.island.IslandNameManager$NameInitializer"
                   android:exported="false" android:directBootAware="true">
             <intent-filter>
                 <action android:name="android.intent.action.USER_INITIALIZE" />
@@ -121,23 +127,33 @@
         <activity android:name="com.oasisfeng.island.settings.IslandSettingsActivity"
                   android:directBootAware="true"
                   android:label="@string/label_activity_island_settings"
-                  android:theme="@android:style/Theme.NoDisplay"
+                  android:theme="@style/AppTheme.Settings"
+                  android:exported="true"
                   android:enabled="false"> <!-- Enabled explicitly by IslandSettingsActivity$Enabler, "directBootAware" to receive PendingIntentShuttle in user-locked state -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="com.oasisfeng.island.category.MANAGED_PROFILE" />
+            </intent-filter>
         </activity>
 
-        <activity-alias android:name="com.oasisfeng.island.settings.IslandSettingsActivityInMainland"
-                        android:targetActivity="com.oasisfeng.island.settings.IslandSettingsActivity" /> <!-- To avoid launcher icon in mainland -->
-
-        <receiver android:name="com.oasisfeng.island.settings.AppOpsPermissionsUnlock" android:directBootAware="true">
+        <receiver android:name="com.oasisfeng.island.settings.AppOpsPermissionsUnlock" android:directBootAware="true" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <service android:name="com.oasisfeng.island.controller.PrivilegedRemoteWorker" />
+
+        <provider android:name="com.oasisfeng.shizuku.NonRootShizukuProvider"
+                  android:authorities="${applicationId}.shizuku"
+                  android:multiprocess="false"
+                  android:exported="true"
+                  android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" /> <!-- "INTERACT_ACROSS_USERS_FULL" to protect this provider from being accessed by normal apps -->
 
     </application>
 

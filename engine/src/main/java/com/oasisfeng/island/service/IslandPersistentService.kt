@@ -2,24 +2,20 @@ package com.oasisfeng.island.service
 
 import android.annotation.SuppressLint
 import android.app.admin.DeviceAdminService
-import android.content.*
-import android.content.Intent.EXTRA_CHANGED_COMPONENT_NAME_LIST
-import android.content.pm.PackageManager
-import android.content.pm.PackageManager.MATCH_DISABLED_COMPONENTS
-import android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES
+import android.content.ComponentName
+import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.ServiceInfo
 import android.os.Build.VERSION.SDK_INT
 import android.os.Build.VERSION_CODES.O
 import android.os.Build.VERSION_CODES.Q
 import android.os.IBinder
 import android.os.Looper
+import android.os.MessageQueue
 import android.os.Process
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.oasisfeng.android.content.pm.getComponentName
 import com.oasisfeng.island.PersistentService
-import com.oasisfeng.island.data.helper.hidden
-import com.oasisfeng.island.util.toId
 
 /**
  * Persistent helper service.
@@ -30,8 +26,7 @@ import com.oasisfeng.island.util.toId
 
     override fun onCreate() {
         Log.d(TAG, "Initializing persistent services...")
-        registerReceiver(mComponentStateReceiver, IntentFilter(Intent.ACTION_PACKAGE_CHANGED).apply { addDataScheme("package") })
-        Looper.getMainLooper().queue.addIdleHandler { false.also { bindPersistentServices() }}
+        Looper.getMainLooper().queue.addIdleHandler(mInitializer)
     }
 
     private fun bindPersistentServices(pkg: String? = null) {
@@ -43,7 +38,7 @@ import com.oasisfeng.island.util.toId
     private fun bindPersistentService(service: ServiceInfo) {
         val component = ComponentName(service.packageName, service.name)
         val componentName = component.flattenToShortString()
-        Log.i(TAG, "Starting persistent service: $componentName in user ${Process.myUserHandle().toId()}")
+        Log.i(TAG, "Starting persistent service: $componentName")
 
         val connection = PersistentServiceConnection(component)
         mConnections.add(connection)
@@ -53,41 +48,16 @@ import com.oasisfeng.island.util.toId
     }
 
     override fun onDestroy() {
-        unregisterReceiver(mComponentStateReceiver)
+        Looper.getMainLooper().queue.removeIdleHandler(mInitializer)
         mConnections.forEach {
             try { unbindService(it) }
             catch (e: RuntimeException) { Log.e(TAG, "Error disconnecting ${it.mComponent}", e) }}
     }
 
-    private val mComponentStateReceiver = object: BroadcastReceiver() { override fun onReceive(context: Context, intent: Intent) {
-        if (intent.getIntExtra(Intent.EXTRA_UID, 0) != Process.myUid()) return
-        val pkg = intent.data?.schemeSpecificPart ?: return
-        val components = intent.getStringArrayExtra(EXTRA_CHANGED_COMPONENT_NAME_LIST)?.takeIf { it.isNotEmpty() } ?: return
-        val pm = context.packageManager
-        if (components[0] == pkg) {     // Package level change
-            if (try { pm.getApplicationInfo(pkg, 0).enabled } catch (e: PackageManager.NameNotFoundException) { false })
-                bindPersistentServices(pkg)
-            else unbindPersistentServices(pkg)
-        } else components.forEach {
-            val info = try { pm.getServiceInfo(ComponentName(pkg, it), MATCH_DISABLED_COMPONENTS or MATCH_UNINSTALLED_PACKAGES) }
-            catch (e: PackageManager.NameNotFoundException) { return@forEach }  // Non-service component
-            if (info.isEnabled && ! info.applicationInfo.hidden) bindPersistentService(info)
-            else unbindPersistentService(info.getComponentName()) }
-    }}
-
-    private fun unbindPersistentService(component: ComponentName) {
-        mConnections.removeIf { if (it.mComponent == component) { unbindService(it); true } else false }
-    }
-
-    private fun unbindPersistentServices(pkg: String) {
-        mConnections.filter { it.mComponent.packageName == pkg }.apply {
-            forEach { unbindService(it) }
-            mConnections.removeAll(this) }
-    }
-
     override fun unbindService(conn: ServiceConnection) = super.unbindService(conn).also {
         if (conn is PersistentServiceConnection) Log.i(TAG, "Stopping persistence service: ${conn.mComponent.flattenToShortString()}") }
 
+    private val mInitializer = MessageQueue.IdleHandler { false.also { bindPersistentServices() } }
     private val mConnections = ArrayList<PersistentServiceConnection>()
 
     private inner class PersistentServiceConnection(val mComponent: ComponentName) : ServiceConnection {

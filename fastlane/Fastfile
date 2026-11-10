@@ -21,6 +21,7 @@ platform :android do
     gradle(task: "test")
   end
 
+<<<<<<< HEAD
   desc "Build for debugging"
   lane :buildDebug do
     gradle(task: "bundle", flavor: "complete", build_type: "Debug")
@@ -29,26 +30,62 @@ platform :android do
   desc "Build for release"
   lane :buildRelease do
     gradle(task: "bundle", flavor: "complete", build_type: "Release")
+=======
+  desc "Build Google Play bundle for debugging"
+  lane :buildGooglePlayDebugBundle do
+    gradle(task: "bundle", flavor: "completeGooglePlay", build_type: "Debug")
+  end
+
+  desc "Build Google Play bundle for release"
+  lane :buildGooglePlayReleaseBundle do
+    gradle(task: "bundle", flavor: "completeGooglePlay", build_type: "Release")
+  end
+
+  desc "Build apk for debugging"
+  lane :buildFdroidDebugApk do
+    gradle(task: "assemble", flavor: "completeFdroid", build_type: "Debug")
+  end
+
+  desc "Build apk for release"
+  lane :buildFdroidReleaseApk do
+    gradle(task: "assemble", flavor: "completeFdroid", build_type: "Release")
+>>>>>>> dev-ci
   end
 
   desc "Submit a new Internal Build to Play Store"
   lane :internal do
+<<<<<<< HEAD
     upload_to_play_store(track: 'internal', apk: 'assembly/build/outputs/bundle/completeRelease/assembly-complete-release.aab')
+=======
+    upload_to_play_store(track: "internal", aab: "assembly/build/outputs/bundle/completeGoogleplayRelease/assembly-complete-googleplay-release.aab")
+>>>>>>> dev-ci
   end
 
   desc "Promote Internal to Alpha"
   lane :promote_internal_to_alpha do |options|
+<<<<<<< HEAD
     upload_to_play_store(track: 'internal', track_promote_to: 'alpha', version_code: options[:version_code])
+=======
+    upload_to_play_store(track: "internal", track_promote_to: "alpha", version_code: options[:version_code])
+>>>>>>> dev-ci
   end
 
   desc "Promote Alpha to Beta"
   lane :promote_alpha_to_beta do
+<<<<<<< HEAD
     upload_to_play_store(track: 'alpha', track_promote_to: 'beta', version_code: options[:version_code])
+=======
+    upload_to_play_store(track: "alpha", track_promote_to: "beta", version_code: options[:version_code])
+>>>>>>> dev-ci
   end
 
   desc "Promote Beta to Production"
   lane :promote_beta_to_production do
+<<<<<<< HEAD
     upload_to_play_store(track: 'beta', track_promote_to: 'production', version_code: options[:version_code])
+=======
+    upload_to_play_store(track: "beta", track_promote_to: "production", version_code: options[:version_code])
+>>>>>>> dev-ci
   end
 
   desc "Build debug and test APK for screenshots"
@@ -59,7 +96,48 @@ platform :android do
 
   desc "Deploy a new version to the Google Play"
   lane :deploy do
+<<<<<<< HEAD
     gradle(task: "clean assembleCompleteRelease")
     upload_to_play_store
   end
+=======
+    gradle(task: "clean assembleCompleteGooglePlayRelease")
+    upload_to_play_store
+  end
+
+  desc "Bump version name and version code"
+  lane :pre_release_build do
+    android_set_version_name(
+      version_name: "'%s'" % ENV["VERSION_NAME"],
+      gradle_file: ENV["VERSION_BUILD_GRADLE_LOCATION"],
+    )
+    android_set_version_code(
+      version_code: ENV["VERSION_CODE"],
+      gradle_file: ENV["VERSION_BUILD_GRADLE_LOCATION"],
+    )
+  end
+
+  desc "Generate changelogs and tag after incrementing the version"
+  lane :post_release_build do
+    # require "date"
+    # write_changelog_from_commits(
+    #   additional_section_name: DateTime.now.strftime("%d/%m/%Y %H:%M"),
+    #   version_code: android_get_version_code(
+    #     gradle_file: ENV["VERSION_BUILD_GRADLE_LOCATION"],
+    #   ),
+    #   changelog_dir: ENV["VERSION_CHANGELOG_DIR_LOCATION"]
+    # )
+    # git_add(path: ENV["VERSION_CHANGELOG_DIR_LOCATION"])
+    git_commit(
+      path: [ENV["VERSION_CHANGELOG_DIR_LOCATION"], ENV["VERSION_BUILD_GRADLE_LOCATION"]], 
+      message: "Version Bump",
+    )
+    add_git_tag(
+      tag: "v" + android_get_version_name(
+        gradle_file: ENV["VERSION_BUILD_GRADLE_LOCATION"],
+      ).delete("'"),
+    )
+    push_git_tags
+  end
+>>>>>>> dev-ci
 end

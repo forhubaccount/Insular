@@ -2,13 +2,17 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion this.compileSdkVersion
+    namespace 'com.oasisfeng.island.open'
+
+    compileSdk this.compileSdkVersion
     
     defaultConfig {
         minSdkVersion this.minSdkVersion
     }
 
     kotlinOptions.jvmTarget = "1.8"
+
+    buildFeatures { buildConfig = true }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8

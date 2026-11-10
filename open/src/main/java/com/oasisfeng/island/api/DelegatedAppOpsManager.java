@@ -1,5 +1,11 @@
 package com.oasisfeng.island.api;
 
+import static android.content.Context.APP_OPS_SERVICE;
+import static android.os.Build.VERSION.SDK_INT;
+import static android.os.Build.VERSION_CODES.P;
+import static com.oasisfeng.island.ApiConstants.DELEGATION_APP_OPS;
+
+import android.annotation.SuppressLint;
 import android.app.AppOpsManager;
 import android.app.DerivedAppOpsManager;
 import android.content.Context;
@@ -23,17 +29,7 @@ import com.oasisfeng.island.shuttle.Shuttle;
 import com.oasisfeng.island.util.Hacks;
 import com.oasisfeng.island.util.Users;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import kotlin.Unit;
-
-import static android.content.Context.APP_OPS_SERVICE;
-import static android.os.Build.VERSION.SDK_INT;
-import static android.os.Build.VERSION_CODES.P;
-import static com.oasisfeng.island.ApiConstants.DELEGATION_APP_OPS;
 
 /**
  * Delegated {@link AppOpsManager}
@@ -46,7 +42,7 @@ public class DelegatedAppOpsManager extends DerivedAppOpsManager {
 		return new DelegatedAppOpsManager(context).mBinderProxy;
 	}
 
-	private DelegatedAppOpsManager(final Context context) throws ReflectiveOperationException {
+	@SuppressLint("MissingPermission") private DelegatedAppOpsManager(final Context context) throws ReflectiveOperationException {
 		mBinderProxy = sHelper.inject(this, context, APP_OPS_SERVICE, (c, delegate) -> new AppOpsBinderProxy(c, DELEGATION_APP_OPS, delegate));
 		final Hacks.AppOpsManager aom = Hack.into(this).with(Hacks.AppOpsManager.class);
 
@@ -56,7 +52,6 @@ public class DelegatedAppOpsManager extends DerivedAppOpsManager {
 		aom.getOpsForPackage(0, "a.b.c", new int[]{ 0 });
 		aom.getPackagesForOps(new int[]{ 0 });
 		aom.setRestriction(0, 0, 0, null);
-		aom.resetAllModes();
 
 		mBinderProxy.seal();
 	}
@@ -77,7 +72,7 @@ public class DelegatedAppOpsManager extends DerivedAppOpsManager {
 			else return super.doTransact(code, data, reply, flags);
 		}
 
-		@RequiresApi(P) protected boolean setMode(final Parcel data) throws RemoteException {
+		@RequiresApi(P) protected boolean setMode(final Parcel data) {
 			if (SDK_INT < P) throw new SecurityException("Island has no privilege to setMode() before Android P.");
 
 			data.enforceInterface(DESCRIPTOR);
@@ -89,25 +84,17 @@ public class DelegatedAppOpsManager extends DerivedAppOpsManager {
 			Log.i(TAG, "IAppOpsService.setMode(" + op + ", " + uid + ", " + pkg + ", " + mode + ")");
 
 			final @UserIdInt int user_id = UserHandles.getUserId(uid);
-			if (user_id == UserHandles.getIdentifier(Users.current())) {
+			if (user_id == Users.currentId()) {
 				new AppOpsHelper(mContext).setMode(pkg, op, mode, uid);
 				return true;
 			}
 			final UserHandle user = UserHandles.of(user_id);
-			if (! Users.isProfileManagedByIsland(user))
+			if (! Users.isProfileManagedByIsland(mContext, user))
 				throw new IllegalArgumentException("User " + user_id + " is not managed by Island");
 
-			try {	// Cross-profile synchronized invocation with 2s timeout.
-				final CompletableFuture<Unit> future = new Shuttle(mContext, user).launchAsFuture(context -> {
-					new AppOpsHelper(context).setMode(pkg, op, mode, uid); return Unit.INSTANCE;
-				});
-				if (future != null) future.get(2, TimeUnit.SECONDS);
-			} catch (final ExecutionException e) {
-				final Throwable cause = e.getCause();
-				if (cause instanceof RuntimeException) throw (RuntimeException) cause;
-				if (cause instanceof RemoteException) throw (RemoteException) cause;
-				throw new RemoteException("Failed to setMode() due to " + e.getCause());
-			} catch (final InterruptedException | TimeoutException ignored) {}
+			new Shuttle(mContext, user).launch(context -> {
+				new AppOpsHelper(context).setMode(pkg, op, mode, uid); return Unit.INSTANCE;
+			});
 			return true;
 		}
 
@@ -117,5 +104,5 @@ public class DelegatedAppOpsManager extends DerivedAppOpsManager {
 		private static final java.lang.String DESCRIPTOR = "com.android.internal.app.IAppOpsService";
 	}
 
-	private static final String TAG = "Island.DAOM";
+	@SuppressWarnings("SpellCheckingInspection") private static final String TAG = "Island.DAOM";
 }

@@ -1,5 +1,9 @@
 package com.oasisfeng.common.app;
 
+import static android.content.Context.LAUNCHER_APPS_SERVICE;
+import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
@@ -27,23 +31,21 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy;
 import java.util.function.Supplier;
 
-import static android.content.Context.LAUNCHER_APPS_SERVICE;
-import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.SECONDS;
-
 /**
  * Information about an installed app, more than {@link ApplicationInfo}.
  *
  * Created by Oasis on 2016/8/5.
  */
-public class AppInfo extends ApplicationInfo {
+public abstract class AppInfo extends ApplicationInfo {
 
 	protected static final int PRIVATE_FLAG_HIDDEN = 1;
 
-	protected AppInfo(final AppListProvider<? extends AppInfo> provider, final ApplicationInfo base, final @Nullable AppInfo last) {
+	protected AppInfo(final AppListProvider<? extends AppInfo> provider, final ApplicationInfo base,
+	                  final @Nullable AppInfo last, final @Nullable CharSequence label) {
 		super(base);
 		mProvider = provider;
-		mLabel = nonLocalizedLabel != null ? nonLocalizedLabel.toString() : provider.getCachedOrTempLabel(this);
+		mLabel = label != null ? label.toString() : nonLocalizedLabel != null ? nonLocalizedLabel.toString()
+				: provider.getCachedOrTempLabel(this);
 		if (last != null) {
 			mLastInfo = last;
 			last.mLastInfo = null;	// Only store the adjacent last.
@@ -51,8 +53,11 @@ public class AppInfo extends ApplicationInfo {
 		}
 	}
 
+	protected abstract AppInfo cloneWithLabel(final CharSequence label);
+
 	public String getLabel() { return mLabel; }
 
+	public boolean isPlaceHolder() { return ! isSystem() && ! isInstalled(); }
 	public boolean isInstalled() { return (flags & ApplicationInfo.FLAG_INSTALLED) != 0; }
 	public boolean isSystem() { return (flags & ApplicationInfo.FLAG_SYSTEM) != 0; }
 	public boolean isSuspended() { return (flags & ApplicationInfo.FLAG_SUSPENDED) != 0; }
@@ -65,7 +70,7 @@ public class AppInfo extends ApplicationInfo {
 	}
 
 	/** @return hidden state, or null if failed to */
-	private static @Nullable Boolean isHidden(final ApplicationInfo info) {
+	public static @Nullable Boolean isHidden(final ApplicationInfo info) {
 		final Integer private_flags = Hacks.ApplicationInfo_privateFlags.get(info);
 		return private_flags != null ? (private_flags & PRIVATE_FLAG_HIDDEN) != 0 : null;
 	}

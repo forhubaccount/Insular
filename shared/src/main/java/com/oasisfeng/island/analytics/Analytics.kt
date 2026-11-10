@@ -41,11 +41,7 @@ interface Analytics {
 	enum class Property(val key: String) {
 		DeviceOwner("device_owner"),
 		IslandSetup("island_setup"),
-		EncryptionRequired("encryption_required"),
-		DeviceEncrypted("device_encrypted"),
 		RemoteConfigAvailable("remote_config_avail"),
-		FileShuttleEnabled("file_shuttle_enabled");
-
 	}
 
 	fun setProperty(property: Property, @Size(max = 36) value: String)
@@ -55,7 +51,7 @@ interface Analytics {
 		@JvmStatic fun log(tag: String, message: String) { Log.i(tag, message); CrashReport.log("[$tag] $message") }
 		@JvmStatic @Suppress("FunctionName") fun `$`() = impl
 		operator fun invoke() = impl
-		private val impl: Analytics = AnalyticsImpl(IslandApplication.`$`())
+		private val impl: Analytics = AnalyticsImpl(IslandApplication.get())
 	}
 }
 

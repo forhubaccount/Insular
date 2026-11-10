@@ -2,6 +2,7 @@ package com.oasisfeng.island
 
 import android.app.Notification
 import android.app.PendingIntent
+import android.app.PendingIntent.FLAG_IMMUTABLE
 import android.app.PendingIntent.FLAG_UPDATE_CURRENT
 import android.app.admin.DevicePolicyManager
 import android.app.admin.DevicePolicyManager.DELEGATION_PACKAGE_ACCESS
@@ -69,14 +70,15 @@ class DelegatedScopeAuthorization : RestrictionsReceiver() {
         }
         val intent = Intent(context, javaClass).setData(Uri.parse("request:$requestId"))
                 .putExtra(EXTRA_PACKAGE_NAME, pkg).putExtra(EXTRA_USER, user).putExtra(REQUEST_KEY_DATA, delegation)
-        val authorize = PendingIntent.getBroadcast(context, 0, intent.setAction(ACTION_AUTHORIZE), FLAG_UPDATE_CURRENT)
-        val refuse = PendingIntent.getBroadcast(context, 0, intent.setAction(ACTION_REFUSE), FLAG_UPDATE_CURRENT)
+        val authorize = PendingIntent.getBroadcast(context, 0, intent.setAction(ACTION_AUTHORIZE), FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE)
+        val refuse = PendingIntent.getBroadcast(context, 0, intent.setAction(ACTION_REFUSE), FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE)
         @Suppress("DEPRECATION")
-        NotificationIds.Authorization.post(context, requestId, Notification.Builder(context).setSmallIcon(android.R.drawable.ic_dialog_alert)
-                .setColor(context.resources.getColor(R.color.accent)).setStyle(Notification.BigTextStyle())
-                .setContentTitle(context.getString(R.string.notification_delegated_scope_auth_title, Apps.of(context).getAppName(pkg) ?: pkg))
-                .setContentText(context.getString(R.string.notification_delegated_scope_auth_text, context.getText(delegationWithLabel.second)))
-                .setDeleteIntent(refuse).addAction(Notification.Action.Builder(0, context.getText(R.string.action_authorize), authorize).build()))
+        NotificationIds.Authorization.post(context, requestId, Notification.Builder(context)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert).setStyle(Notification.BigTextStyle())
+            .setColor(context.resources.getColor(com.oasisfeng.island.shared.R.color.accent))
+            .setContentTitle(context.getString(R.string.notification_delegated_scope_auth_title, Apps.of(context).getAppName(pkg) ?: pkg))
+            .setContentText(context.getString(R.string.notification_delegated_scope_auth_text, context.getText(delegationWithLabel.second)))
+            .setDeleteIntent(refuse).addAction(Notification.Action.Builder(0, context.getText(R.string.action_authorize), authorize).build()))
     }
 
     override fun onReceive(context: Context, intent: Intent) {

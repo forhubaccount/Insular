@@ -2,9 +2,14 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <Preference
-        android:key="@string/key_device_owner_setup"
+        android:key="@string/key_managed_mainland_setup"
         android:title="@string/pref_device_owner_title"
-        android:summary="@string/pref_device_owner_summary" />
+        android:summary="@string/pref_managed_mainland_summary" />
+
+    <Preference
+        android:key="@string/key_lock_capture_target"
+        android:title="@string/pref_lock_capture_target_title"
+        android:summary="@string/pref_lock_capture_target_summary" />
 
     <PreferenceCategory android:key="@string/key_privacy" android:title="@string/pref_privacy_header">
 
@@ -13,6 +18,7 @@
             android:selectable="false" />
 
         <com.oasisfeng.android.preference.WallOfTextPreference
+            android:key="@string/key_privacy_appops"
             android:summary="@string/pref_privacy_appops"
             android:selectable="false" />
 
@@ -37,11 +43,21 @@
 
     </PreferenceCategory>
 
-    <Preference
-        android:key="@string/key_cross_profile"
-        android:title="Manage cross-land privilege"
-        android:summary="Manage the apps with cross-land privilege."
-        android:persistent="false" />
+    <PreferenceCategory android:title="@string/pref_crossland_header">
+
+        <Preference
+            android:key="@string/key_cross_profile"
+            android:title="@string/pref_manage_cross_profile_title"
+            android:summary="@string/pref_manage_cross_profile_summary"
+            android:persistent="false" />
+
+        <Preference
+            android:key="@string/key_cross_profile_widgets"
+            android:title="@string/pref_manage_cross_profile_widgets_title"
+            android:summary="@string/pref_manage_cross_profile_widgets_summary"
+            android:persistent="false" />
+
+    </PreferenceCategory>
 
     <PreferenceCategory android:key="@string/key_watcher" android:title="@string/pref_quick_controls_header">
 

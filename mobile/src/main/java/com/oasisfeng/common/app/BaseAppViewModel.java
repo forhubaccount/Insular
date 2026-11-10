@@ -1,5 +1,7 @@
 package com.oasisfeng.common.app;
 
+import static android.content.pm.ApplicationInfo.FLAG_SYSTEM;
+
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 import android.view.View;
@@ -11,8 +13,6 @@ import com.oasisfeng.android.ui.IconResizer;
 import com.oasisfeng.androidx.lifecycle.NonNullMutableLiveData;
 import com.oasisfeng.island.IslandApplication;
 import com.oasisfeng.island.mobile.R;
-
-import static android.content.pm.ApplicationInfo.FLAG_SYSTEM;
 
 /**
  * View-model of basic app entry
@@ -28,7 +28,6 @@ public class BaseAppViewModel extends ViewModel {
 
 	public boolean isSystem() { return (info.flags & FLAG_SYSTEM) != 0; }
 
-	@SuppressWarnings("unused")		// Used by data binding
 	public void onViewAttached(final View v) {
 		if (mIconLoadingStarted) return;
 		mIconLoadingStarted = true;
@@ -47,5 +46,5 @@ public class BaseAppViewModel extends ViewModel {
 		return TextUtils.equals(info.getLabel(), another.info.getLabel()) && info.flags == another.info.flags;
 	}
 
-	private final static IconResizer sIconResizer = new IconResizer((int) IslandApplication.$().getResources().getDimension(R.dimen.app_icon_size));	// TODO: Avoid static
+	private final static IconResizer sIconResizer = new IconResizer((int) IslandApplication.get().getResources().getDimension(R.dimen.app_icon_size));	// TODO: Avoid static
 }

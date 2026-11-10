@@ -36,12 +36,18 @@ public class UserGuide {
 
 	public final ObservableField<MaterialTapTargetPrompt.Builder> prompt_action = new ObservableField<>();
 
+	public boolean isCloneTipHidden() {
+		return mAppScope.isMarked(SCOPE_KEY_TIP_CLONE);
+	}
+
 	public MenuItem.OnMenuItemClickListener getAvailableTip() {
 		final @Nullable UserHandle profile = mAppListViewModel.getCurrentProfile();
 		if (profile == null) return null;
-		if (! mAppScope.isMarked(SCOPE_KEY_TIP_CLONE) && Users.isOwner(profile) && mAppSelection != null && ! mAppSelection.isSystem())
+		if (! mAppScope.isMarked(SCOPE_KEY_TIP_CLONE) && Users.isParentProfile(profile)
+				&& mAppSelection != null && ! mAppSelection.isSystem())
 			return mTipClone;
-		if (! mAppScope.isMarked(SCOPE_KEY_TIP_FREEZE) && Users.isProfileManagedByIsland(profile) && mAppSelection != null)
+		if (! mAppScope.isMarked(SCOPE_KEY_TIP_FREEZE) && Users.isProfileManagedByIsland(mActivity, profile)
+				&& mAppSelection != null && mAppSelection.state == AppViewModel.State.Alive)
 			return mTipFreeze;
 		return null;
 	}
@@ -106,7 +112,7 @@ public class UserGuide {
 				final IslandAppInfo app = apps.iterator().next();
 				if (app.isHidden())
 					scope.markOnly(SCOPE_KEY_TIP_FREEZE);		// User just froze an app, no need to show tip for app freezing.
-				else if (Users.isProfileManagedByIsland(app.user) && app.getLastInfo() == null)
+				else if (Users.isProfileManagedByIsland(app.context(), app.user) && app.getLastInfo() == null)
 					scope.markOnly(SCOPE_KEY_TIP_CLONE);		// User just cloned an app, no need to show tip for app cloning.
 				if (scope.isMarked(SCOPE_KEY_TIP_FREEZE) && scope.isMarked(SCOPE_KEY_TIP_CLONE))
 					provider.unregisterObserver(this);			// No more interest for package events.

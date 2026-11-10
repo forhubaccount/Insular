@@ -14,22 +14,24 @@ import android.widget.Toast
 import com.oasisfeng.android.os.UserHandles
 import com.oasisfeng.android.util.Apps
 import com.oasisfeng.island.analytics.analytics
+import com.oasisfeng.island.settings.IslandSettings
 import com.oasisfeng.island.shuttle.Shuttle
 import com.oasisfeng.island.util.Users
-import kotlinx.coroutines.GlobalScope
 
 private const val HELPER_NOTIFICATION_TIMEOUT = 10_000L
 
 class AppSettingsHelperService: Service() {
 
-	private fun shouldEnableForceStop(pkg: String, uid: Int): Boolean {
+	private fun shouldEnableForApp(pkg: String, uid: Int): Boolean {
 		val appId = UserHandles.getAppId(uid)
 		if (uid != appId) return true   // There's no "install from" entry in App Settings for apps in managed profile.
 		if (appId == UserHandles.getAppId(Process.myUid())) return false
+
+		if (! IslandSettings(this).AppSettingsHelperExtended().enabled)
+			try { if (packageManager.getInstallerPackageName(pkg) == packageName) return false }
+			catch (e: IllegalArgumentException) {}
+
 		return true
-		// TODO
-		//try { packageManager.getInstallerPackageName(pkg) != packageName }
-		//catch (e: PackageManager.NameNotFoundException) { false }
 	}
 
 	override fun onCreate() {
@@ -58,17 +60,19 @@ class AppSettingsHelperService: Service() {
 
 		val uptimeMillis = SystemClock.uptimeMillis()
 		if (intent.action == Intent.ACTION_PACKAGE_RESTARTED) {     // If triggered by system Settings, it will be followed by ACTION_QUERY_PACKAGE_RESTART immediately.
-			return Unit.also { Shuttle(context, to = Users.owner).launch(at = GlobalScope) {
+			return Unit.also { Shuttle(context, to = Users.parentProfile).launchNoThrows {     // Shuttle may not be ready as persistent service is started early
 				try { onPackageRestarted(pkg, uid, uptimeMillis) }
 				catch (e: RuntimeException) { analytics().logAndReport(TAG, "Error transferring ACTION_PACKAGE_RESTARTED to parent user", e) }}}}
 
 		if (intent.action == ACTION_QUERY_PACKAGE_RESTART) {
+			if (! shouldEnableForApp(pkg, uid)) return
+
 			if (sLastPackageRestart?.run { first + MAX_DELAY > uptimeMillis && second == pkg && third == uid } == true) {
-				return AppInstallationNotifier.showNotification(context, pkg, UserHandles.of(UserHandles.getUserId(uid)),
+				return AppInstallationNotifier.showAppInfoNotification(context, INVALID_SESSION_ID, pkg,
 						Apps.of(context).getAppName(pkg), timeout = HELPER_NOTIFICATION_TIMEOUT) }
 
 			sLastPackageRestart = null
-			if (resultCode != Activity.RESULT_OK && shouldEnableForceStop(pkg, uid)) {
+			if (resultCode != Activity.RESULT_OK && shouldEnableForApp(pkg, uid)) {
 				resultCode = Activity.RESULT_OK
 				if (! sToastShown) {
 					Toast.makeText(context, R.string.app_settings_helper_prompt, Toast.LENGTH_LONG).show()

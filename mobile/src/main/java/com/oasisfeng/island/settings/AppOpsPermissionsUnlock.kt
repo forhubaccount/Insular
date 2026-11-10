@@ -8,27 +8,31 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
-import android.content.pm.PackageManager.*
+import android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+import android.content.pm.PackageManager.DONT_KILL_APP
+import android.content.pm.PackageManager.GET_PERMISSIONS
+import android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES
 import android.os.Build.VERSION.SDK_INT
 import android.os.Build.VERSION_CODES.P
 import android.util.Log
 import com.oasisfeng.island.data.helper.hidden
 import com.oasisfeng.island.util.DPM
 import com.oasisfeng.island.util.DevicePolicies
-import com.oasisfeng.island.util.Users
 import kotlin.concurrent.thread
 
 class AppOpsPermissionsUnlock: BroadcastReceiver() {
 
 	override fun onReceive(context: Context, intent: Intent?) {
 		if (intent?.action !in listOf(Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_LOCKED_BOOT_COMPLETED)) return
-		if (SDK_INT < P || ! DevicePolicies.isProfileOwner(context, Users.current())) return disableSelf(context)
+		if (SDK_INT < P || ! DevicePolicies(context).isProfileOwner) return disableSelf(context)
 
 		val async = goAsync()
 		thread(start = true) {
-			unlockAll(context.applicationContext)
+			try { unlockAll(context.applicationContext) } // SecurityException on BBK brands (OnePlus, Realme, OPPO and etc.), "getPackagesForUid: UID 1010256 requires android.permission.INTERACT_ACROSS_USERS_FULL or android.permission.INTERACT_ACROSS_USERS or android.permission.INTERACT_ACROSS_PROFILES to access user ."
+			catch (e: SecurityException) { Log.e(TAG, "Failed to unlock all permissions", e) }
 			disableSelf(context)
-			async.finish() }
+			async.finish()
+		}
 	}
 
 	companion object {
@@ -39,8 +43,8 @@ class AppOpsPermissionsUnlock: BroadcastReceiver() {
 			context.packageManager.getInstalledPackages(GET_PERMISSIONS or MATCH_UNINSTALLED_PACKAGES).forEach { info ->
 				info.requestedPermissionsFlags?.forEachIndexed { i, flags ->
 					if (flags and PackageInfo.REQUESTED_PERMISSION_GRANTED != 0) {
-						val permission = info.requestedPermissions[i]!!
-						try { unlock(policies, info.applicationInfo, permission) }
+						val permission = info.requestedPermissions!![i]!!
+						try { unlock(policies, info.applicationInfo!!, permission) }
 						catch (e: RuntimeException) { Log.e(TAG, "Error unlocking permission for ${info.packageName}: $permission") }}}}
 		}
 

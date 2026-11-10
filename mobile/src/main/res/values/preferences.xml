@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- General -->
+    <string translatable="false" name="key_launch_shortcut_prefix">launch_shortcut_prefix</string>
     <string translatable="false" name="key_show_admin_message">show_admin_message</string>
     <string translatable="false" name="key_preserve_app_ops">preserve_app_ops</string>
     <!-- Island (per-profile) -->
-    <string translatable="false" name="key_island_name">island_name</string>
-    <string translatable="false" name="key_device_owner_setup">device_owner_setup</string>
+    <string translatable="false" name="key_managed_mainland_setup">device_owner_setup</string>
+    <string translatable="false" name="key_lock_capture_target">lock_capture_target</string>
     <string translatable="false" name="key_privacy">privacy</string>
+    <string translatable="false" name="key_privacy_appops">appops</string>
     <string translatable="false" name="key_manage_read_phone_state">manage_read_phone_state</string>
     <string translatable="false" name="key_manage_read_sms">manage_read_sms</string>
     <string translatable="false" name="key_manage_location">manage_location</string>
     <string translatable="false" name="key_manage_storage">manage_storage</string>
     <string translatable="false" name="key_cross_profile">cross_profile</string>
+    <string translatable="false" name="key_cross_profile_widgets">cross_profile_widgets</string>
     <string translatable="false" name="key_watcher">watcher</string>
     <string translatable="false" name="key_island_watcher">island_watcher</string>
     <string translatable="false" name="key_app_watcher">app_watcher</string>
@@ -22,4 +25,5 @@
     <string translatable="false" name="key_privacy_notification_for_clone">privacy_notification_clone</string>
     <!-- About -->
     <string translatable="false" name="key_version">version</string>
+    <string translatable="false" name="key_beta">beta</string>
 </resources>

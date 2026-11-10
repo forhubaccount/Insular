@@ -1,10 +1,13 @@
 package com.oasisfeng.island.analytics;
 
 import android.os.Process;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
 import com.oasisfeng.android.util.Suppliers;
+import com.oasisfeng.island.IslandApplication;
+import com.oasisfeng.island.shared.BuildConfig;
 
 import java.util.function.Supplier;
 
@@ -31,6 +34,7 @@ public abstract class CrashReport {
 	private static class LazyThreadExceptionHandler implements Thread.UncaughtExceptionHandler {
 
 		@Override public void uncaughtException(final @NonNull Thread thread, final @NonNull Throwable e) {
+			if (BuildConfig.DEBUG) Log.e(TAG, "Handling:", e);
 			if (mHandlingUncaughtException) {		// Avoid infinite recursion
 				mOriginalHandler.uncaughtException(thread, e);
 				return;
@@ -49,4 +53,6 @@ public abstract class CrashReport {
 		private final Thread.UncaughtExceptionHandler mOriginalHandler;
 		private boolean mHandlingUncaughtException;
 	}
+
+	private static final String TAG = "Island.Crash";
 }

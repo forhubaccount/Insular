@@ -16,13 +16,12 @@ import com.oasisfeng.android.os.UserHandles
 import com.oasisfeng.common.app.AppListProvider
 import com.oasisfeng.island.data.helper.installed
 import com.oasisfeng.island.engine.ClonedHiddenSystemApps
-import com.oasisfeng.island.provisioning.CriticalAppsManager
 import com.oasisfeng.island.provisioning.SystemAppsManager
+import com.oasisfeng.island.shuttle.Shuttle
 import com.oasisfeng.island.util.Users
-import com.oasisfeng.island.util.toId
+import com.oasisfeng.island.util.Users.Companion.isParentProfile
+import com.oasisfeng.island.util.Users.Companion.toId
 import java.util.function.Predicate
-import java.util.stream.Stream
-import kotlin.streams.asSequence
 
 /**
  * Island-specific [AppListProvider]
@@ -32,14 +31,33 @@ import kotlin.streams.asSequence
 class IslandAppListProvider : AppListProvider<IslandAppInfo>() {
 
 	operator fun get(pkg: String, profile: UserHandle): IslandAppInfo? {
-		return if (Users.isOwner(profile)) super.get(pkg) else loadAppsInProfileIfNotYet(profile)[pkg]
+		return if (profile.isParentProfile()) super.get(pkg) else loadAppsInProfileIfNotYet(profile)[pkg]
+	}
+
+	fun addPlaceholder(pkg: String, profile: UserHandle) {
+		if (get(pkg, profile) != null) return
+		val info = getApplicationInfoIncludingUninstalled(pkg, profile) ?: return
+
+		Log.i(TAG, "Add placeholder for $pkg in profile ${profile.toId()}")
+		val app = IslandAppInfo(this, profile, info, null)
+		mIslandAppMap[profile]!![pkg] = app
+		notifyUpdate(setOf(app))
+	}
+
+	fun removePlaceholder(pkg: String, profile: UserHandle) {
+		val appsInProfile = mIslandAppMap[profile] ?: return
+		val app = appsInProfile[pkg] ?: return
+		if (! app.isPlaceHolder) return
+		Log.i(TAG, "Remove placeholder for $pkg in profile ${profile.toId()}")
+		appsInProfile.remove(pkg)
+		notifyUpdate(setOf(app))
 	}
 
 	fun isInstalled(pkg: String, profile: UserHandle) = get(pkg, profile)?.run { installed && shouldShowAsEnabled() } == true
 
 	fun isExclusive(app: IslandAppInfo): Boolean {
-		if (Users.isOwner(app.user) && ! Users.hasProfile()) return true
-		return Users.getProfilesManagedByIsland().asSequence().plus(Users.owner).minus(app.user).all { profile ->
+		if (app.user.isParentProfile() && ! Users.hasProfile()) return true
+		return Users.getProfilesManagedByIsland().asSequence().plus(Users.parentProfile).minus(app.user).all { profile ->
 			! isInstalled(app.packageName, profile) }
 	}
 
@@ -47,25 +65,27 @@ class IslandAppListProvider : AppListProvider<IslandAppInfo>() {
 		return IslandAppInfo(this, UserHandles.getUserHandleForUid(current.uid), current, last)
 	}
 
+	fun createEntryWithLabel(current: ApplicationInfo, last: IslandAppInfo?, label: CharSequence): IslandAppInfo {
+		return IslandAppInfo(this, UserHandles.getUserHandleForUid(current.uid), current, last, label)
+	}
+
 	override fun onAppLabelUpdate(pkg: String, label: String) {
 		super.onAppLabelUpdate(pkg, label)
 		Users.getProfilesManagedByIsland().forEach { profile ->
 			val appsInProfile = mIslandAppMap[profile] ?: return@forEach
 			val entry = appsInProfile[pkg] ?: return@forEach
-			Log.d(TAG, "Label updated for $pkg in profile $profile: $label")
+			Log.d(TAG, "Label updated for $pkg in profile ${profile.toId()}: $label")
 			val newEntry = IslandAppInfo(this, Users.profile, entry, null)
 			appsInProfile[pkg] = newEntry
 			notifyUpdate(setOf(newEntry))
 		}
 	}
 
-	fun installedApps(profile: UserHandle): Stream<IslandAppInfo> {
-		return if (Users.isOwner(profile)) installedAppsInOwnerUser() else loadAppsInProfileIfNotYet(profile).values.stream()
-	}
+	fun installedApps(profile: UserHandle): Collection<IslandAppInfo>
+	= if (profile.isParentProfile()) installedAppsInOwnerUser() else loadAppsInProfileIfNotYet(profile).values
 
 	private fun loadAppsInProfileIfNotYet(profile: UserHandle): Map<String, IslandAppInfo>
-			= if (! Users.isProfileManagedByIsland(profile)) emptyMap()
-			else mIslandAppMap.getOrPut(profile) { ArrayMap<String, IslandAppInfo>().apply { refresh(this, profile) }}
+	= if (! Users.isProfileManagedByIsland(context(), profile)) emptyMap() else mIslandAppMap.getOrPut(profile) { refresh(profile) }
 
 	private fun initializeMonitor() {
 		Log.d(TAG, "Initializing monitor...")
@@ -73,7 +93,7 @@ class IslandAppListProvider : AppListProvider<IslandAppInfo>() {
 		mLauncherApps.registerCallback(mCallback)
 
 		context().registerReceiver(object : BroadcastReceiver() {
-			override fun onReceive(context: Context, intent: Intent) {
+			override fun onReceive(context: Context, intent: Intent) { @Suppress("DEPRECATION")
 				val profile = intent.getParcelableExtra<UserHandle>(EXTRA_USER) ?: return
 				Log.i(TAG, "Profile removed: ${profile.toId()}")
 				mIslandAppMap[profile]?.clear()
@@ -83,32 +103,37 @@ class IslandAppListProvider : AppListProvider<IslandAppInfo>() {
 		mClonedHiddenSystemApps.migrateIfNeeded()
 	}
 
-	private fun refresh(outApps: MutableMap<String, IslandAppInfo>, profile: UserHandle) {
-		val la = mLauncherApps
-		val visible = la.getActivityList(null, profile).asSequence().map { it.applicationInfo }.associateBy { it.packageName }  // Collect all unfrozen apps first in one API call.
-		super.installedAppsInOwnerUser().asSequence().mapNotNull { app -> val pkg = app.packageName
-			visible[pkg] ?: la.getAppInfo(pkg, MATCH_UNINSTALLED_PACKAGES, profile)?.takeIf { it.installed }}
-				.forEach { info -> outApps[info.packageName] = IslandAppInfo(this, profile, info, null) }
-		Log.d(TAG, "Refreshed apps in Island ${profile.toId()}")
+	private fun refresh(profile: UserHandle): ArrayMap<String, IslandAppInfo> {
+		Log.d(TAG, "Refresh apps in Island ${profile.toId()}")
+		// Starting from Android 15 QPR2 (2025 March update), MATCH_UNINSTALLED_PACKAGES or MATCH_ALL in mainland no longer returns frozen apps in Island.
+		val apps: Sequence<ApplicationInfo> = (if (profile != Users.current()) {
+			Shuttle(context(), to = profile).invokeNoThrows {
+				packageManager.getInstalledApplications(PM_FLAGS_APP_INFO) }?.asSequence()
+		} else null) ?: // Fallback: Mix visible apps from LauncherApps with invisible (frozen) apps from mainland PackageManager.
+			// Collect all visible (unfrozen) apps first in one API call, to reduce later getAppInfo() calls.
+			mLauncherApps.getActivityList(null, profile).asSequence()
+				.map { it.applicationInfo }.associateBy { it.packageName }.let { visible ->
+			installedAppsInOwnerUser().asSequence().mapNotNull { visible[it.packageName] ?: getAppInfo(it.packageName, profile) }}
+		return apps.associateByTo(ArrayMap(), ApplicationInfo::packageName) { IslandAppInfo(this, profile, it, null) }
 	}
 
-	private fun LauncherApps.getAppInfo(pkg: String, flags: Int, user: UserHandle): ApplicationInfo?
-			= LauncherAppsCompat.getApplicationInfoNoThrows(this, pkg, flags, user)
-	private fun getApplicationInfo(pkg: String, profile: UserHandle): ApplicationInfo? {
-		// Use MATCH_UNINSTALLED_PACKAGES to include frozen packages and then exclude non-installed packages with FLAG_INSTALLED.
-		val info = LauncherAppsCompat.getApplicationInfoNoThrows(mLauncherApps, pkg, MATCH_UNINSTALLED_PACKAGES, profile)
-		return info?.takeIf { it.installed }
+	private fun getAppInfo(pkg: String, profile: UserHandle): ApplicationInfo? {
+		// Use getApplicationInfoIncludingUninstalled() to include frozen packages and then exclude non-installed packages.
+		return getApplicationInfoIncludingUninstalled(pkg, profile)?.takeIf { it.installed }
+	}
+	private fun getApplicationInfoIncludingUninstalled(pkg: String, profile: UserHandle): ApplicationInfo? {
+		return LauncherAppsCompat.getApplicationInfoNoThrows(mLauncherApps, pkg, MATCH_UNINSTALLED_PACKAGES, profile)
 	}
 
 	fun refreshPackage(pkg: String, profile: UserHandle, add: Boolean) {
 		Log.d(TAG, "Update: " + pkg + if (add) " for pkg add" else " for pkg change")
-		val info = getApplicationInfo(pkg, profile)
+		val info = getAppInfo(pkg, profile)
 		val appsInProfile = mIslandAppMap[profile] ?: return
 		if (info == null) {
 			appsInProfile.remove(pkg)?.also { notifyRemoval(setOf(it)) }
 			return }
 		val last = appsInProfile[pkg]
-		val app = IslandAppInfo(this, profile, info, last)
+		val app = IslandAppInfo(this, profile, info, last?.takeIf { it.isPlaceHolder })
 		if (add && app.isHidden) {
 			Log.w(TAG, "Correct the flag for unhidden package: $pkg")
 			app.isHidden = false }
@@ -118,7 +143,7 @@ class IslandAppListProvider : AppListProvider<IslandAppInfo>() {
 
 	/** Freezing or disabling a critical app may cause malfunction to other apps or the whole system.  */
 	fun isCritical(pkg: String): Boolean {
-		return pkg == CriticalAppsManager.getCurrentWebViewPackageName() || mCriticalSystemPackages.contains(pkg)
+		return mCriticalSystemPackages.contains(pkg)
 	}
 
 	private val mCallback: LauncherApps.Callback = object : LauncherApps.Callback() {
@@ -127,7 +152,7 @@ class IslandAppListProvider : AppListProvider<IslandAppInfo>() {
 			val appsInProfile = mIslandAppMap[profile] ?: return
 			val app = appsInProfile[pkg] ?: return Unit.also { Log.e(TAG, "Removed package not found in Island: $pkg") }
 			if (app.isHidden) return  // The removal callback is triggered by freezing.
-			val info = getApplicationInfo(pkg, profile)
+			val info = getAppInfo(pkg, profile)
 			if (info != null && info.flags and ApplicationInfo.FLAG_INSTALLED != 0) {    // Frozen
 				val newInfo = IslandAppInfo(this@IslandAppListProvider, profile, info, appsInProfile[pkg])
 				if (!newInfo.isHidden) {
@@ -174,4 +199,4 @@ class IslandAppListProvider : AppListProvider<IslandAppInfo>() {
 	}
 }
 
-private const val TAG = "Island.AppListProv"
+private const val TAG = "Island.ALP"

@@ -19,6 +19,7 @@ import org.junit.runner.RunWith;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static android.app.PendingIntent.FLAG_IMMUTABLE;
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 import static androidx.test.InstrumentationRegistry.getContext;
 import static org.junit.Assert.assertEquals;
@@ -32,7 +33,7 @@ import static org.junit.Assert.assertEquals;
 public class ApiActivityTest {
 
 	private static final String MY_PKG = getContext().getPackageName();
-	private static final PendingIntent CALLER_ID = PendingIntent.getBroadcast(getContext(), 0, new Intent(), FLAG_UPDATE_CURRENT);
+	private static final PendingIntent CALLER_ID = PendingIntent.getBroadcast(getContext(), 0, new Intent(), FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE);
 
 	public static class DummyActivity extends Activity {
 		@Override protected void onCreate(final Bundle savedInstanceState) {
@@ -60,7 +61,7 @@ public class ApiActivityTest {
 
 	private static void invokeApiActivityAndReceiver(final int expected_result, Intent intent) throws ExecutionException, InterruptedException {
 		final Context context = getContext();
-		intent = new Intent(intent).setPackage("com.oasisfeng.island");
+		intent = new Intent(intent).setPackage("com.oasisfeng.island.fdroid");
 
 		final CompletableFuture<Integer> result_code = new CompletableFuture<>();
 		final CompletableFuture<String> result_data = new CompletableFuture<>();

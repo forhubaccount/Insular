@@ -3,6 +3,7 @@ package com.oasisfeng.island.watcher
 import android.Manifest.permission
 import android.app.Notification
 import android.app.PendingIntent
+import android.app.PendingIntent.FLAG_IMMUTABLE
 import android.app.PendingIntent.FLAG_UPDATE_CURRENT
 import android.content.*
 import android.content.Intent.ACTION_PACKAGE_REMOVED
@@ -13,9 +14,13 @@ import android.net.Uri
 import android.os.Build.VERSION.SDK_INT
 import android.os.Build.VERSION_CODES.O
 import android.os.Build.VERSION_CODES.Q
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.annotation.ColorRes
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
 import com.oasisfeng.android.util.Apps
 import com.oasisfeng.island.api.Api
 import com.oasisfeng.island.notification.NotificationIds
@@ -61,7 +66,7 @@ import java.util.*
 	}
 
 	private fun refreeze(context: Context, pkg: String, watching_permissions: List<String>?) {
-		if (mCallerId == null) mCallerId = PendingIntent.getBroadcast(context, 0, Intent(), FLAG_UPDATE_CURRENT)
+		if (mCallerId == null) mCallerId = PendingIntent.getBroadcast(context, 0, Intent(), FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE)
 		context.sendBroadcast(Intent(Api.latest.ACTION_FREEZE, Uri.fromParts("package", pkg, null))
 				.putExtra(Api.latest.EXTRA_CALLER_ID, mCallerId).setPackage(context.packageName))
 		if (watching_permissions == null) return
@@ -73,13 +78,14 @@ import java.util.*
 		for (granted_permission in grantedPermissions) try {
 			val permissionLabel = pm.getPermissionInfo(granted_permission, 0).loadLabel(pm)
 			val tag = Uri.fromParts(pkg, granted_permission, null).toString()
-			NotificationIds.IslandAppWatcher.post(context, tag) { buildShared(context, pkg, R.color.accent)
-					setSubText(appName).setContentTitle(context.getString(R.string.notification_permission_was_granted_title, permissionLabel))
-					setContentText(context.getText(R.string.notification_permission_was_granted_text))
-					addAction(Notification.Action.Builder(null, context.getText(R.string.action_keep_granted),
-							makePendingIntent(context, ACTION_DISMISS, pkg, granted_permission)).build())
-					addAction(Notification.Action.Builder(null, context.getText(R.string.action_revoke_granted),
-							makePendingIntent(context, ACTION_REVOKE_PERMISSION, pkg, granted_permission)).build()) }}
+			NotificationIds.IslandAppWatcher.post(context, tag) {
+				buildShared(context, pkg, com.oasisfeng.island.shared.R.color.accent)
+				setSubText(appName).setContentTitle(context.getString(R.string.notification_permission_was_granted_title, permissionLabel))
+				setContentText(context.getText(R.string.notification_permission_was_granted_text))
+				addAction(Notification.Action.Builder(null, context.getText(R.string.action_keep_granted),
+					makePendingIntent(context, ACTION_DISMISS, pkg, granted_permission)).build())
+				addAction(Notification.Action.Builder(null, context.getText(R.string.action_revoke_granted),
+					makePendingIntent(context, ACTION_REVOKE_PERMISSION, pkg, granted_permission)).build()) }}
 		catch (_: PackageManager.NameNotFoundException) {}  // Should never happen
 	}
 
@@ -88,8 +94,11 @@ import java.util.*
 	/** This provider tracks all freezing and unfreezing events triggered by other modules within the default process of Island  */
 	class AppStateTracker : PseudoContentProvider() {
 
-		override fun onCreate() = false.also { context().registerReceiver(IslandAppWatcher(), IntentFilter().apply {
-			addAction(DevicePolicies.ACTION_PACKAGE_UNFROZEN); addAction(ACTION_PACKAGE_REMOVED); addDataScheme(("package")) }) }
+		override fun onCreate() = false.also { Handler(Looper.getMainLooper()).post {
+			ContextCompat.registerReceiver(context(), IslandAppWatcher(),
+			IntentFilter(DevicePolicies.ACTION_PACKAGE_UNFROZEN).apply {
+				addAction(ACTION_PACKAGE_REMOVED); addDataScheme(("package")) }, RECEIVER_NOT_EXPORTED)
+		}}
 	}
 
 	companion object {
@@ -105,33 +114,35 @@ import java.util.*
 
 		private fun startWatching(context: Context, info: PackageInfo) {
 			val watchingPermissions: ArrayList<String>?
-			if (info.requestedPermissions != null) {
+			val requestedPermissions = info.requestedPermissions
+			if (requestedPermissions != null) {
 				watchingPermissions = ArrayList()
-				for (i in info.requestedPermissions.indices) if (info.requestedPermissionsFlags[i] and PackageInfo.REQUESTED_PERMISSION_GRANTED == 0) {
-					val permission = info.requestedPermissions[i]
+				for (i in requestedPermissions.indices) if (info.requestedPermissionsFlags!![i] and PackageInfo.REQUESTED_PERMISSION_GRANTED == 0) {
+					val permission = requestedPermissions[i]
 					if (CONCERNED_PERMISSIONS.contains(permission)) watchingPermissions.add(permission)
 				}
 			} else watchingPermissions = null
-			val pkg = info.packageName; val appLabel = info.applicationInfo.loadLabel(context.packageManager)
-			NotificationIds.IslandAppWatcher.post(context, pkg) { buildShared(context, pkg, R.color.primary)
-					setContentTitle(context.getString(R.string.notification_app_watcher_title, appLabel)).setContentText(context.getText(R.string.notification_app_watcher_text))
-					setContentIntent(makePendingIntent(context, ACTION_REFREEZE, "package", pkg) {
-						watchingPermissions?.also { putStringArrayListExtra(EXTRA_WATCHING_PERMISSIONS, it) }})
-					addAction(Notification.Action.Builder(null, context.getText(R.string.action_settings), PendingIntent.getActivity(context, 0,
-							NotificationIds.IslandWatcher.buildChannelSettingsIntent(context), FLAG_UPDATE_CURRENT)).build())
-					addAction(Notification.Action.Builder(null, context.getText(R.string.action_dismiss),
-							makePendingIntent(context, ACTION_DISMISS, "package", pkg)).build()) }
+			val pkg = info.packageName; val appLabel = info.applicationInfo?.loadLabel(context.packageManager) ?: pkg
+			NotificationIds.IslandAppWatcher.post(context, pkg) {
+				buildShared(context, pkg, com.oasisfeng.island.shared.R.color.primary)
+				setContentTitle(context.getString(R.string.notification_app_watcher_title, appLabel)).setContentText(context.getText(R.string.notification_app_watcher_text))
+				setContentIntent(makePendingIntent(context, ACTION_REFREEZE, "package", pkg) {
+					watchingPermissions?.also { putStringArrayListExtra(EXTRA_WATCHING_PERMISSIONS, it) }})
+				addAction(Notification.Action.Builder(null, context.getText(R.string.action_settings), PendingIntent.getActivity(context, 0,
+					NotificationIds.IslandWatcher.buildChannelSettingsIntent(context), FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE)).build())
+				addAction(Notification.Action.Builder(null, context.getText(R.string.action_dismiss),
+					makePendingIntent(context, ACTION_DISMISS, "package", pkg)).build()) }
 		}
 
 		private fun makePendingIntent(context: Context, action: String, scheme: String, ssp: String, extras: ((Intent).() -> Unit)? = null)
 				= PendingIntent.getBroadcast(context, 0, Intent(action).setClass(context, IslandAppWatcher::class.java).apply {
 					data = Uri.fromParts(scheme, ssp, null); extras?.invoke(this)
-				}, FLAG_UPDATE_CURRENT)
+				}, FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE)
 
 		private fun Notification.Builder.buildShared(context: Context, pkg: String, @ColorRes color: Int) {
 			val shortcutId = "launch:$pkg"
-			setOngoing(true).setColor(context.getColor(color))
-					.setSmallIcon(R.drawable.ic_landscape_black_24dp).setVisibility(Notification.VISIBILITY_PUBLIC)
+			setOngoing(true).setColor(context.getColor(color)).setVisibility(Notification.VISIBILITY_PUBLIC)
+					.setSmallIcon(com.oasisfeng.island.shared.R.drawable.ic_landscape_black_24dp)
 					.setGroup(GROUP).setCategory(Notification.CATEGORY_STATUS).setShortcutId(shortcutId)
 			if (SDK_INT >= Q) setLocusId(LocusId(shortcutId))
 		}

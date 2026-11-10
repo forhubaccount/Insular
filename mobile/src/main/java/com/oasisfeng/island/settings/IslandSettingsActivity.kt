@@ -2,80 +2,122 @@
 
 package com.oasisfeng.island.settings
 
-import android.Manifest.permission.ACCESS_COARSE_LOCATION
-import android.Manifest.permission.READ_EXTERNAL_STORAGE
-import android.Manifest.permission.READ_PHONE_STATE
-import android.Manifest.permission.READ_SMS
+import android.Manifest.permission.*
 import android.annotation.SuppressLint
-import android.app.Activity
+import android.app.ActionBar
+import android.app.AlertDialog
+import android.app.Fragment
 import android.app.admin.DevicePolicyManager.ACTION_PROVISION_MANAGED_DEVICE
 import android.app.admin.DevicePolicyManager.ACTION_PROVISION_MANAGED_PROFILE
+import android.appwidget.AppWidgetManager
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
-import android.content.pm.PackageManager.*
+import android.content.Intent.ACTION_BOOT_COMPLETED
+import android.content.Intent.ACTION_MY_PACKAGE_REPLACED
+import android.content.pm.PackageManager
+import android.content.pm.PackageManager.GET_PERMISSIONS
+import android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES
+import android.graphics.Typeface.BOLD
 import android.net.Uri
 import android.os.Build.VERSION.SDK_INT
 import android.os.Build.VERSION_CODES.O
 import android.os.Build.VERSION_CODES.P
 import android.os.Build.VERSION_CODES.Q
+import android.os.Build.VERSION_CODES.S
 import android.os.Bundle
+import android.os.Process
 import android.preference.EditTextPreference
 import android.preference.Preference
 import android.preference.TwoStatePreference
 import android.provider.Settings
 import android.text.Editable
+import android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+import android.text.SpannableStringBuilder
 import android.text.TextWatcher
+import android.text.style.StyleSpan
 import android.util.ArraySet
+import android.util.Log
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
+import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
+import androidx.core.content.getSystemService
+import com.oasisfeng.android.content.pm.enableComponent
+import com.oasisfeng.android.content.pm.getComponentName
 import com.oasisfeng.android.ui.Dialogs
 import com.oasisfeng.android.ui.WebContent
 import com.oasisfeng.island.Config
+import com.oasisfeng.island.IslandNameManager
 import com.oasisfeng.island.TempDebug
 import com.oasisfeng.island.appops.AppOpsCompat
+import com.oasisfeng.island.data.helper.isSystem
 import com.oasisfeng.island.mobile.BuildConfig
 import com.oasisfeng.island.mobile.R
 import com.oasisfeng.island.notification.NotificationIds
 import com.oasisfeng.island.setup.IslandSetup
-import com.oasisfeng.island.shuttle.PendingIntentShuttle
-import com.oasisfeng.island.util.DPM
-import com.oasisfeng.island.util.DevicePolicies
-import com.oasisfeng.island.util.Modules
-import com.oasisfeng.island.util.Users
+import com.oasisfeng.island.util.*
+import com.oasisfeng.island.util.DevicePolicies.PreferredActivity
 
 /**
  * Settings for each managed profile, also as launcher activity in managed profile.
  *
  * Created by Oasis on 2019-10-12.
  */
-class IslandSettingsFragment: android.preference.PreferenceFragment() {
+@ProfileUser class IslandSettingsFragment: android.preference.PreferenceFragment() {
 
-    override fun onResume() {
+    @Deprecated("Deprecated in Java") override fun onResume() {
         super.onResume()
-        val activity = activity
-        activity.title = preferenceManager.sharedPreferences.getString(getString(R.string.key_island_name), null)
-                ?: IslandNameManager.getDefaultName(activity)
+        val activity = activity; val pm = activity.packageManager
+        activity.title = IslandNameManager.getName(activity)
 
-        val policies = DevicePolicies(activity)
+        val policies = DevicePolicies(activity.applicationContext)
         val isProfileOrDeviceOwner = policies.isProfileOrDeviceOwnerOnCallingUser
 
-        if (Users.isOwner() && ! isProfileOrDeviceOwner) {
-            setup<Preference>(R.string.key_device_owner_setup) {
-                summary = getString(R.string.pref_device_owner_summary) + getString(R.string.pref_device_owner_featurs)
-                setOnPreferenceClickListener { true.also { WebContent.view(activity, Uri.parse(Config.URL_SETUP_GOD_MODE.get())) }}}
-            setup<Preference>(R.string.key_privacy) { if (SDK_INT > Q) remove(this) else isEnabled = false }   // Show but disabled, as a feature preview.
+        if (SDK_INT !in P..Q) removeAppOpsRelated()     // Both Mainland and Island
+
+        if (Users.isParentProfile() && ! isProfileOrDeviceOwner) {
+            setup<Preference>(R.string.key_cross_profile) { remove(this) }
+            setup<Preference>(R.string.key_cross_profile_widgets) { remove(this) }
+            setup<Preference>(R.string.key_managed_mainland_setup) {
+                summary = getString(R.string.pref_managed_mainland_summary) + getString(R.string.pref_managed_mainland_features)
+                setOnPreferenceClickListener { true.also { WebContent.view(activity, Uri.parse(Config.URL_SETUP_MANAGED_MAINLAND.get())) }}}
             setup<Preference>(R.string.key_watcher) { isEnabled = false }
             setup<Preference>(R.string.key_island_watcher) { remove(this) }
-            setup<Preference>(R.string.key_setup) { remove(this) }
-            return
-        } else setup<Preference>(R.string.key_device_owner_setup) { remove(this) }
+            setup<Preference>(R.string.key_app_watcher) { remove(this) }
+            setup<Preference>(R.string.key_setup) { remove(this) } }
+        else setup<Preference>(R.string.key_managed_mainland_setup) { remove(this) }
 
-        if (SDK_INT <= Q) {     // App Ops in Android R is a mess (being reset now and then), do not support it on Android R at present.
+        setup<Preference>(R.string.key_lock_capture_target) {
+            if (! isProfileOrDeviceOwner) {
+                isEnabled = false
+                if (Users.isParentProfile()) summary = getString(R.string.pref_lock_capture_target_summary_mainland)
+            } else setOnPreferenceClickListener { true.also {
+                val captureIntent = PreferredActivity.Camera.getMatchingIntent()
+                val candidates = pm.getInstalledApplications(0).filter { ! it.isSystem }.flatMap {  // Skip system apps to avoid hanging due to massive queries.
+                    pm.queryIntentActivities(captureIntent.setPackage(it.packageName), 0)
+                }.map { it.activityInfo }
+                if (candidates.isEmpty())
+                    return@also Unit.also { Dialogs.buildAlert(activity, 0, R.string.prompt_no_capture_app).show() }
+                val current = captureIntent.setPackage(null).resolveActivity(pm)
+
+                val reset = DialogInterface.OnClickListener { _, _ ->
+                    captureIntent.resolveActivity(pm)?.packageName?.also { pkg ->
+                        policies.clearPersistentPreferredActivity(pkg).also {
+                            if (BuildConfig.DEBUG) Toast.makeText(activity, "Cleared: $pkg", Toast.LENGTH_LONG).show() }}}
+                val list = candidates.map { it.loadLabel(pm).run {
+                    if (it.getComponentName() != current) this
+                    else SpannableStringBuilder(this).apply { setSpan(StyleSpan(BOLD), 0, length, SPAN_EXCLUSIVE_EXCLUSIVE) }}}
+                Dialogs.buildList(activity, null, list.toTypedArray()) { _, which ->
+                    reset.onClick(null, 0)   // Reset first
+                    val target = candidates[which]
+                    policies.setPersistentPreferredActivity(PreferredActivity.Camera, target.getComponentName())
+                }.setNeutralButton(R.string.button_reset_to_default, reset).show() }}}
+
+        if (SDK_INT in P..Q && isProfileOrDeviceOwner) { // App Ops in Android R is a mess (being reset now and then), do not support it on Android R at present.
             setupPreferenceForManagingAppOps(R.string.key_manage_read_phone_state, READ_PHONE_STATE, AppOpsCompat.OP_READ_PHONE_STATE,
                     R.string.pref_privacy_read_phone_state_title, SDK_INT <= P)
             setupPreferenceForManagingAppOps(R.string.key_manage_read_sms, READ_SMS, AppOpsCompat.OP_READ_SMS,
@@ -84,40 +126,67 @@ class IslandSettingsFragment: android.preference.PreferenceFragment() {
                     R.string.pref_privacy_location_title)
             if (Settings.Global.getInt(activity.contentResolver, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 0)
                 setupPreferenceForManagingAppOps(R.string.key_manage_storage, READ_EXTERNAL_STORAGE,
-                        AppOpsCompat.OP_READ_EXTERNAL_STORAGE, R.string.pref_privacy_storage_title)
-        } else setup<Preference>(R.string.key_privacy) { remove(this) }
+                        AppOpsCompat.OP_READ_EXTERNAL_STORAGE, R.string.pref_privacy_storage_title) }
 
         setup<Preference>(R.string.key_cross_profile) {
             if (SDK_INT <= Q || ! isProfileOrDeviceOwner) return@setup remove(this)
             onClick {
-                val pkgs = activity.packageManager.getInstalledPackages(GET_PERMISSIONS or MATCH_UNINSTALLED_PACKAGES)
-                        .filter { it.requestedPermissions?.contains(INTERACT_ACROSS_PROFILES) == true }
-                val pm = activity.packageManager
-                val entries = pkgs.map { it.applicationInfo.loadLabel(pm) }.toTypedArray()
+                val pkgs = pm.getInstalledPackages(GET_PERMISSIONS or MATCH_UNINSTALLED_PACKAGES)
+                        .filter { it.requestedPermissions?.contains(INTERACT_ACROSS_PROFILES) == true
+                                && (it.applicationInfo?.uid ?: 0) != Process.myUid() }  // Exclude extension pack
+                val entries = pkgs.map { it.applicationInfo?.loadLabel(pm) ?: it.packageName }.toTypedArray()
                 val allowedPackages: Set<String> = policies.invoke(DPM::getCrossProfilePackages)
                 val allowed = BooleanArray(entries.size) { index -> pkgs[index].packageName in allowedPackages }
                 Dialogs.buildCheckList(activity, activity.getText(R.string.prompt_manage_cross_profile_apps),
-                        entries, allowed) { _, which, checked -> allowed[which] = checked }.withOkButton {
+                        entries, allowed) { _, which, checked -> allowed[which] = checked }
+                        .setNeutralButton(R.string.action_close) { _,_ ->
                             pkgs.mapIndexedNotNullTo(ArraySet()) { index, pkg -> if (allowed[index]) pkg.packageName else null }
-                                    .toSet().also { policies.invoke(DPM::setCrossProfilePackages, it) }}
-                        .withCancelButton().show() }}
+                                    .toSet().also { policies.setCrossProfilePackages(it) }}
+                        .setPositiveButton(R.string.prompt_manage_cross_profile_apps_footer, null)
+                        .show().apply { getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false } }}
 
-        setupNotificationChannelTwoStatePreference(R.string.key_island_watcher, SDK_INT >= P && !Users.isOwner(), NotificationIds.IslandWatcher)
-        setupNotificationChannelTwoStatePreference(R.string.key_app_watcher, SDK_INT >= O, NotificationIds.IslandAppWatcher)
+        setup<Preference>(R.string.key_cross_profile_widgets) {
+            val widgetManager = activity.getSystemService<AppWidgetManager>()
+            if (! isProfileOrDeviceOwner || widgetManager == null) return@setup remove(this)
+            onClick {
+                val pkgToAppInfo = widgetManager.installedProviders
+                    .map { if (SDK_INT >= S) it.activityInfo else Hacks.AppWidgetProviderInfo_providerInfo.get(it) }
+                    .associate { it.packageName to it.applicationInfo }
+                val pkgs = pkgToAppInfo.keys.toList()
+                val entries = pkgToAppInfo.values.map { it.loadLabel(pm) }.toTypedArray()
+                val allowedPackages: Set<String> = policies.invoke(DPM::getCrossProfileWidgetProviders).toSet()
+                val allowed = BooleanArray(entries.size) { index -> pkgs[index] in allowedPackages }
+                Dialogs.buildCheckList(activity, activity.getText(R.string.pref_manage_cross_profile_widgets_summary), entries, allowed) { _, which, checked ->
+                    if (checked) policies.invoke(DPM::addCrossProfileWidgetProvider, pkgs[which])
+                    else policies.invoke(DPM::removeCrossProfileWidgetProvider, pkgs[which])
+                }.setNeutralButton(R.string.action_close, null).show() }}
+
+        setupNotificationChannelTwoStatePreference(this, R.string.key_island_watcher, SDK_INT >= P && ! Users.isParentProfile(), NotificationIds.IslandWatcher) {
+            if (SDK_INT >= Q) summary = getString(R.string.pref_island_watcher_summary) +
+                    "\n" + getString(R.string.pref_island_watcher_summary_appendix_api29) }
+        setupNotificationChannelTwoStatePreference(this, R.string.key_app_watcher, SDK_INT >= O, NotificationIds.IslandAppWatcher)
 
         setup<Preference>(R.string.key_reprovision) {
-            if (Users.isOwner() && ! isProfileOrDeviceOwner) return@setup remove(this)
+            if (Users.isParentProfile() && ! isProfileOrDeviceOwner) return@setup remove(this)
             setOnPreferenceClickListener { true.also { @SuppressLint("InlinedApi")
                 val action = if (policies.isActiveDeviceOwner) ACTION_PROVISION_MANAGED_DEVICE else ACTION_PROVISION_MANAGED_PROFILE
                 ContextCompat.startForegroundService(activity, Intent(action).setPackage(Modules.MODULE_ENGINE)) }}}
         setup<Preference>(R.string.key_destroy) {
-            if (Users.isOwner()) {
+            if (Users.isParentProfile()) {
                 if (! isProfileOrDeviceOwner) return@setup remove(this)
                 setTitle(R.string.pref_rescind_title)
-                summary = getString(R.string.pref_rescind_summary) + getString(R.string.pref_device_owner_featurs) + "\n" }
+                summary = getString(R.string.pref_rescind_summary) + getString(R.string.pref_managed_mainland_features) + "\n" }
             setOnPreferenceClickListener { true.also {
-                if (Users.isOwner()) IslandSetup.requestDeviceOrProfileOwnerDeactivation(activity)
+                if (Users.isParentProfile()) IslandSetup.requestDeviceOrProfileOwnerDeactivation(activity)
                 else IslandSetup.requestProfileRemoval(activity) }}}
+    }
+
+    private fun removeAppOpsRelated() {
+        setup<Preference>(R.string.key_privacy_appops) { remove(this) }
+        setup<Preference>(R.string.key_manage_read_phone_state) { remove(this) }
+        setup<Preference>(R.string.key_manage_read_sms) { remove(this) }
+        setup<Preference>(R.string.key_manage_location) { remove(this) }
+        setup<Preference>(R.string.key_manage_storage) { remove(this) }
     }
 
     private fun setupPreferenceForManagingAppOps(key: Int, permission: String, op: Int, @StringRes prompt: Int, precondition: Boolean = true) {
@@ -127,12 +196,18 @@ class IslandSettingsFragment: android.preference.PreferenceFragment() {
             } else remove(this) }
     }
 
-    private fun setupNotificationChannelTwoStatePreference(@StringRes key: Int, visible: Boolean, notificationId: NotificationIds) {
+    private fun setupNotificationChannelTwoStatePreference(fragment: Fragment, @StringRes key: Int, visible: Boolean,
+            notificationId: NotificationIds, block: (TwoStatePreference.() -> Unit)? = null) {
         setup<TwoStatePreference>(key) {
             if (visible && SDK_INT >= O) {
                 isChecked = ! notificationId.isBlocked(context)
-                setOnPreferenceChangeListener { _, _ -> true.also { context.startActivity(notificationId.buildChannelSettingsIntent(context)) }}
+                setOnPreferenceChangeListener { _, _ -> true.also {
+                    if (context.checkSelfPermission(POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+                        fragment.requestPermissions(arrayOf(POST_NOTIFICATIONS), 0)
+                    fragment.startActivity(notificationId.buildChannelSettingsIntent(context))
+                }}
             } else remove(this)
+            block?.invoke(this)
         }
     }
 
@@ -140,16 +215,14 @@ class IslandSettingsFragment: android.preference.PreferenceFragment() {
         val activity = activity
         IslandNameManager.setName(activity, name)
         activity.title = name
-        IslandNameManager.syncNameToOwnerUser(activity, name)
     }
 
     private fun requestRenaming() {
         val activity = activity
         object: EditTextPreference(activity) {
             init {
-                key = getString(R.string.key_island_name)
                 onAttachedToHierarchy(this@IslandSettingsFragment.preferenceManager)
-                if (text.isNullOrEmpty()) text = IslandNameManager.getDefaultName(activity)
+                if (text.isNullOrEmpty()) text = IslandNameManager.getName(activity)
                 editText.also { editText ->
                     editText.addTextChangedListener(object: TextWatcher {
                         override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
@@ -166,21 +239,20 @@ class IslandSettingsFragment: android.preference.PreferenceFragment() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    @Deprecated("Deprecated in Java") override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
-        activity.actionBar?.setDisplayHomeAsUpEnabled(true)
         preferenceManager.setStorageDeviceProtected()
         addPreferencesFromResource(R.xml.pref_island)
     }
 
-    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
-        if (! Users.isOwner()) {
+    @Deprecated("Deprecated in Java") override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        if (! Users.isParentProfile()) {
             inflater.inflate(R.menu.pref_island_actions, menu)
             if (BuildConfig.DEBUG) menu.findItem(R.id.menu_test).isVisible = true }
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+    @Deprecated("Deprecated in Java") override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.menu_rename -> true.also { requestRenaming() }
             R.id.menu_test -> true.also { TempDebug.run(activity) }
@@ -190,35 +262,29 @@ class IslandSettingsFragment: android.preference.PreferenceFragment() {
     }
 }
 
-class IslandSettingsActivity: Activity() {
+/** Only enabled in profile managed by Island, as a sole indicator for owner user to identify. */
+class IslandSettingsActivity: CallerAwareActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (intent.action != null && PendingIntentShuttle.collect(this)) return finish()    // Allow explicit launch intent without action
-        setTheme(R.style.AppTheme_Settings)
+        if (callingPackage != packageName) actionBar?.setDisplayOptions(0, ActionBar.DISPLAY_SHOW_HOME)
+        else actionBar?.setDisplayOptions(ActionBar.DISPLAY_HOME_AS_UP, ActionBar.DISPLAY_HOME_AS_UP)
         fragmentManager.beginTransaction().replace(android.R.id.content, IslandSettingsFragment()).commit()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        setVisible(true)    // Required due to "Theme.NoDisplay" being used for PendingIntentShuttle.
-    }
-
-    override fun finish() {
-        super.finish()
-        if (intent.flags and Intent.FLAG_ACTIVITY_NO_ANIMATION != 0) overridePendingTransition(0, 0)
+        IslandNameManager.syncNameToParentProfile(this)     // In case previous name synchronization failed
     }
 
     class Enabler: BroadcastReceiver() {    // One-time enabler for
 
         override fun onReceive(context: Context, intent: Intent) {      // ACTION_LOCKED_BOOT_COMPLETED is unnecessary for activity
-            if (Intent.ACTION_BOOT_COMPLETED == intent.action || Intent.ACTION_MY_PACKAGE_REPLACED == intent.action) context.packageManager.apply {
-                if (Users.isOwner()) return         // Not needed in mainland
-                setComponentEnabledSetting(ComponentName(context, IslandSettingsActivity::class.java), COMPONENT_ENABLED_STATE_ENABLED, DONT_KILL_APP)
-                setComponentEnabledSetting(ComponentName(context, Enabler::class.java), COMPONENT_ENABLED_STATE_DISABLED, DONT_KILL_APP)
-            }
+            if (intent.action != ACTION_BOOT_COMPLETED && intent.action != ACTION_MY_PACKAGE_REPLACED) return
+            if (Users.isParentProfile()) return     // Should never happen
+            if (! DevicePolicies(context).isProfileOwner) return        // Profile managed by other app
+
+            Log.i(TAG, "Enabling ${IslandSettingsActivity::class.java.simpleName}")
+            context.enableComponent<IslandSettingsActivity>()
         }
     }
 }
 
 private const val INTERACT_ACROSS_PROFILES = "android.permission.INTERACT_ACROSS_PROFILES"
+private const val TAG = "Island.ISA"

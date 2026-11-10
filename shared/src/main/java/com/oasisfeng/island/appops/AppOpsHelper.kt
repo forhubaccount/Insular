@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES
 import android.content.pm.PackageManager.NameNotFoundException
+import android.os.Build.VERSION_CODES.P
 import android.util.ArrayMap
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -32,12 +33,15 @@ import com.oasisfeng.island.util.ProfileUser
  */
 private const val PREFS_NAME = "app_ops"
 
-@RequiresApi(28) class AppOpsHelper(private val context: Context) {
+@RequiresApi(P) class AppOpsHelper(private val context: Context) {
+
+    fun setMode(pkg: String, op: String, mode: Int, uid: Int) = setMode(pkg, mAppOps.strOpToOp(op), mode, uid)
 
     fun setMode(pkg: String, op: Int, mode: Int, uid: Int): Boolean {
         if (! DevicePolicies(context).invoke(DevicePolicyManager::isApplicationHidden, pkg)) {
             mAppOps.setMode(op, uid, pkg, mode)     // If app is hidden, just save and postpone the change to the next unfreezing.
-            if (getMode(pkg, op, uid) ?: mode != mode) return false.also { Log.e(TAG, "Failed to set mode of op $op to $mode for $pkg") }}
+            if ((getMode(pkg, op, uid) ?: mode) != mode)
+                return false.also { Log.e(TAG, "Failed to set mode of op $op to $mode for $pkg") }}
         saveAppOp(pkg, op, mode, uid)       // After successful operations
         return true
     }

@@ -15,18 +15,20 @@ else {
 }
 
 android {
-    compileSdkVersion this.compileSdkVersion
+    namespace 'com.oasisfeng.island'
+
+    compileSdk this.compileSdkVersion
 
     defaultConfig {
-        applicationId "org.securesystem.insular"
+        applicationId "com.oasisfeng.island"
         minSdkVersion this.minSdkVersion
-        targetSdkVersion 29     // Private APIs are accessed by module "open" and "fileprovider" (via indirectly loaded remote class)
-        resConfigs "en", "zh"
+        targetSdkVersion 34
+        resourceConfigurations += ['en', 'zh', 'zh-rTW', 'pt-rBR']
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
-        missingDimensionStrategy 'compat', 'gingerbreadCompat'  // setup-wizard has a "compat" dimension that Insular doesn't
-        versionCode Integer.valueOf(System.env.VERSION_CODE ?: 1)
+        versionCode 51507
         // Manually bump the semver version part of the string as necessary
-        versionName "4.5.2-${System.env.VERSION_SHA}"
+        versionName '5.1.2-a3fe6196'
+        multiDexEnabled true
     }
 
     buildFeatures.dataBinding true
@@ -52,40 +54,40 @@ android {
         }
     }
 
-    flavorDimensions "packaging"
+    flavorDimensions += "packaging"
+    flavorDimensions += "distribution"
 
     productFlavors {
-        complete {
-            dimension "packaging"
+        complete { dimension "packaging" }
+        engine   { dimension "packaging" }  // Share application ID to retain the profile ownership when switching builds
+        mobile   { dimension "packaging"; applicationIdSuffix ".mobile" }
+
+        normal     { dimension "distribution" }
+        googleplay {
+            dimension "distribution"
+            applicationIdSuffix = ".fdroid"
         }
-        engine {    // Use the same application ID to retain the profile / device ownership between "engine" and "full" build.
-            dimension "packaging"
-            matchingFallbacks = ['full']
-        }
-        mobile {
-            applicationIdSuffix ".mobile"
-            dimension "packaging"
-            matchingFallbacks = ['full']
-        }
-        fileprovider {
-            applicationIdSuffix ".fileprovider"
-            dimension "packaging"
-            matchingFallbacks = ['full']
+
+        fdroid {
+            dimension "distribution"
+            applicationIdSuffix = ".fdroid"
         }
     }
+
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    lintOptions {
-        check 'NewApi'
+    lint {
+        checkOnly 'NewApi'
         abortOnError true
+        checkReleaseBuilds false
         htmlReport false
         xmlReport false
         textReport true
-        textOutput "stdout"
+        textOutput file('stdout')
     }
 
     repositories.flatDir {
@@ -97,14 +99,16 @@ dependencies {
     // Complete
     completeImplementation project(':engine')
     completeImplementation project(':mobile')
-    completeImplementation project(':fileprovider')
     completeImplementation project(':installer')
     completeImplementation project(':watcher')
     completeImplementation project(':open')
+    completeImplementation project(':sideplay')
+
+    //debugImplementation project(':media')
+
     // Engine only
     engineImplementation project(':engine')
     // Mobile only
     mobileImplementation project(':mobile')
-    // File Provider only
-    fileproviderImplementation project(':fileprovider')
 }
+

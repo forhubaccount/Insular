@@ -1,13 +1,17 @@
 package com.oasisfeng.island.model;
 
+import static android.widget.Toast.LENGTH_SHORT;
+import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_ID;
+import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.toList;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Application;
 import android.app.SearchManager;
-import android.app.admin.DevicePolicyManager;
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
+import android.content.pm.ApplicationInfo;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.UserHandle;
@@ -16,8 +20,6 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.SearchView;
 import android.widget.Toast;
 
@@ -49,26 +51,19 @@ import com.oasisfeng.island.greenify.GreenifyClient;
 import com.oasisfeng.island.mobile.BR;
 import com.oasisfeng.island.mobile.BuildConfig;
 import com.oasisfeng.island.mobile.R;
-import com.oasisfeng.island.settings.IslandNameManager;
 import com.oasisfeng.island.shortcut.IslandAppShortcut;
 import com.oasisfeng.island.util.DevicePolicies;
 import com.oasisfeng.island.util.Users;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Predicate;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
-import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_ID;
-import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toList;
-
 /**
  * View model for apps
- *
+ * <p>
  * Created by Oasis on 2015/7/7.
  */
 @ParametersAreNonnullByDefault
@@ -76,6 +71,8 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 
 	private static final long QUERY_TEXT_DELAY = 300;	// The delay before typed query text is applied
 	private static final String STATE_KEY_FILTER_HIDDEN_SYSTEM_APPS = "filter.hidden_sys";
+	private static final String STATE_KEY_FILTER_CAN_QUERY_ALL_PACKAGES = "filter.can_query_all_packages";
+	private static final String STATE_KEY_FILTER_CAN_MANAGE_STORAGE = "filter.can_manage_storage";
 
 	/** Workaround for menu res reference not supported by data binding */ public static @MenuRes int actions_menu = R.menu.app_actions;
 
@@ -86,10 +83,27 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 	public MutableLiveData<Boolean> getFilterIncludeHiddenSystemApps() {
 		return mState.getLiveData(STATE_KEY_FILTER_HIDDEN_SYSTEM_APPS, false);
 	}
+	public MutableLiveData<Boolean> getFilterCanQueryAllPackages() {
+		return mState.getLiveData(STATE_KEY_FILTER_CAN_QUERY_ALL_PACKAGES, false);
+	}
+	public MutableLiveData<Boolean> getFilterCanManageExternalStorage() {
+		return mState.getLiveData(STATE_KEY_FILTER_CAN_MANAGE_STORAGE, false);
+	}
 
 	public interface Filter extends Predicate<IslandAppInfo> {
-		Filter Island = app -> app.shouldShowAsEnabled() && app.isInstalled();
-		Filter Mainland = app -> Users.isOwner(app.user) && (app.isSystem() || app.isInstalled());	// Including uninstalled system app
+
+		Filter Mainland = app -> Users.isParentProfile(app.user) && (app.isSystem() || app.isInstalled());	// Including uninstalled system app
+
+		class IslandFilter implements Filter {
+
+			@Override public boolean test(final IslandAppInfo app) {
+				return mProfile.equals(app.user) && app.shouldShowAsEnabled() && (app.isInstalled() || app.isPlaceHolder());
+			}
+
+			IslandFilter(UserHandle profile) { mProfile = profile; }
+
+			private final UserHandle mProfile;
+		}
 	}
 
 	private Predicate<IslandAppInfo> activeFilters() {
@@ -131,22 +145,26 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 		onQueryTextSubmit("");
 	}
 
-	public void updateAppList() {
+	public void updateAppList(final String reason) {
 		if (mFilterShared == null) return;		// When called by constructor   TODO: Obsolete?
 		final UserHandle profile = getCurrentProfile();
 		if (profile == null) return;
-		Log.d(TAG, "Profile: " + UserHandles.getIdentifier(profile));
+		Log.d(TAG, "Update app list in profile " + Users.toId(profile) + " for reason: " + reason);
 
-		final Filter profile_filter = Users.isOwner(profile) ? Filter.Mainland : Filter.Island;
+		final Filter profile_filter = Users.isParentProfile(profile) ? Filter.Mainland : new Filter.IslandFilter(profile);
 		Predicate<IslandAppInfo> filters = mFilterShared.and(profile_filter);
 		if (getFilterIncludeHiddenSystemApps().getValue() != Boolean.TRUE)
-			filters = filters.and(app -> ! app.isSystem() || app.isInstalled() && app.isLaunchable());
+			filters = filters.and(app -> ! app.isSystem() || app.isInstalled() && app.isLaunchable());  // Exclude system apps without launcher activity
+		if (getFilterCanQueryAllPackages().getValue() == Boolean.TRUE)
+			filters = filters.and(IslandAppInfo::canQueryAllPackages);
+		if (getFilterCanManageExternalStorage().getValue() == Boolean.TRUE)
+			filters = filters.and(IslandAppInfo::canManageExternalStorage);
 		final String text = getQueryText().getValue();
-		if (! TextUtils.isEmpty(text)) {
+		if (text != null && ! text.isEmpty()) {
 			if (text.startsWith("package:")) {
 				final String pkg = text.substring(8);
 				filters = filters.and(app -> app.packageName.equals(pkg));
-			} else {    // TODO: Support T9 Pinyin
+			} else {
 				final String text_lc = text.toLowerCase();
 				filters = filters.and(app -> app.packageName.toLowerCase().contains(text_lc) || app.getLabel().toLowerCase().contains(text_lc));
 			}
@@ -157,7 +175,8 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 		clearSelection();
 
 		IslandAppInfo.cacheLaunchableApps(requireNonNull(mAppListProvider.getContext()));	// Performance optimization
-		final List<AppViewModel> apps = mAppListProvider.installedApps(profile).filter(filters).map(AppViewModel::new).collect(toList());
+		final List<AppViewModel> apps = mAppListProvider.installedApps(profile).stream()
+				.filter(filters).map(AppViewModel::new).collect(toList());
 		IslandAppInfo.invalidateLaunchableAppsCache();
 		replaceApps(apps);
 
@@ -176,11 +195,12 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 		mFilterShared = IslandAppListProvider.excludeSelf(app);
 
 		final UserHandle user = savedState.get(Intent.EXTRA_USER);
-		setCurrentProfile(user != null && (Users.isOwner(user) || Users.isProfileManagedByIsland(user)) ? user
-				: Users.profile != null ? Users.profile : Users.owner);
+		setCurrentProfile(user != null && (Users.isParentProfile(user) || Users.isProfileManagedByIsland(app, user)) ? user
+				: Users.hasProfile() ? Users.profile : Users.getParentProfile());
 
 		final String filter_text = getQueryText().getValue();
 		if (! TextUtils.isEmpty(filter_text)) onQueryTextSubmit(filter_text);
+		updateChipsVisibility();
 	}
 
 	public void onTabSwitched(final FragmentActivity activity, final TabLayout tabs, final TabLayout.Tab tab) {
@@ -190,7 +210,6 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 			mSelection.setValue(null);
 			mFeatured.visible.setValue(Boolean.TRUE);
 			mFeatured.update(activity);
-			mChipsVisible.setValue(false);
 			Analytics.log(TAG, "tab-discover");
 			return;
 		} else mFeatured.visible.setValue(Boolean.FALSE);
@@ -199,38 +218,55 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 			final Object tag = tab.getTag();
 			if (tag instanceof UserHandle) {
 				final UserHandle profile = (UserHandle) tag;
-				if (Users.isProfileManagedByIsland(profile)) {
+				if (Users.isProfileManagedByIsland(activity, profile)) {
 					setCurrentProfile(profile);
-					updateAppList();
+					updateAppList("tab-island-" + Users.toId(profile));
 					Analytics.log(TAG, "tab-island-" + UserHandles.getIdentifier(profile));
 					return;
-				}
+				} else tabs.removeTab(tab);     // In case it is removed elsewhere (e.g. by ADB shell)
 			}
 		}
 		tabs.selectTab(tabs.getTabAt(1));   // Switch back to Mainland
-		setCurrentProfile(Users.owner);
-		updateAppList();
+		setCurrentProfile(Users.getParentProfile());
+		updateChipsVisibility();
+		updateAppList("tab-mainland");
 		Analytics.log(TAG, "tab-mainland");
 	}
 
-	public void updateActions(final Menu menu) {
+	private void updateChipsVisibility() {
+		mChipsVisible.setValue(getCurrentProfile() != null && (
+				getFilterIncludeHiddenSystemApps().getValue() == Boolean.TRUE
+				|| getFilterCanQueryAllPackages().getValue() == Boolean.TRUE
+				|| getFilterCanManageExternalStorage().getValue() == Boolean.TRUE
+				|| ! TextUtils.isEmpty(getQueryText().getValue())));
+	}
+
+	public void updateActions(final Menu menu, final boolean cloneTipHidden) {
+		mCloneTipHidden = cloneTipHidden;
 		final AppViewModel selection = mSelection.getValue();
 		if (selection == null) return;
 		final IslandAppInfo app = selection.info();
 		Analytics.$().trace("app", app.packageName).trace("user", Users.toId(app.user)).trace("hidden", app.isHidden())
 				.trace("system", app.isSystem()).trace("critical", app.isCritical());
 		final boolean exclusive = mAppListProvider.isExclusive(app);
-		final boolean system = app.isSystem(), installed = app.isInstalled(), in_owner = Users.isOwner(app.user),
-				is_managed = in_owner ? mOwnerUserManaged : Users.isProfileManagedByIsland(app.user);
+		final boolean system = app.isSystem(), installed = app.isInstalled(), placeholder = app.isPlaceHolder(),
+				in_owner = Users.isParentProfile(app.user),
+				is_managed = in_owner ? mOwnerUserManaged : Users.isProfileManagedByIsland(getApplication(), app.user);
+		final MenuItem clone = menu.findItem(R.id.menu_clone).setVisible(! placeholder && Users.hasProfile());
+		if (! cloneTipHidden) {     // Move "Clone" before "App Settings" if the clone tip is not hidden yet.
+			menu.removeItem(clone.getItemId());
+			menu.add(clone.getGroupId(), clone.getItemId(), menu.findItem(R.id.menu_app_settings).getOrder() - 1, clone.getTitle());
+		}
 		menu.findItem(R.id.menu_freeze).setVisible(installed && is_managed && ! app.isHidden() && app.enabled);
 		menu.findItem(R.id.menu_unfreeze).setVisible(installed && is_managed && app.isHidden());
-		menu.findItem(R.id.menu_reinstall).setVisible(! installed);
+		menu.findItem(R.id.menu_reinstall).setVisible(! installed && ! placeholder);
+		menu.findItem(R.id.menu_app_settings).setVisible(! placeholder);
 		menu.findItem(R.id.menu_remove).setVisible(installed && (exclusive ? system : (! system || app.shouldShowAsEnabled())));	// Disabled system app is treated as "removed".
 		menu.findItem(R.id.menu_uninstall).setVisible(installed && exclusive && ! system);	// "Uninstall" for exclusive user app, "Remove" for exclusive system app.
 		menu.findItem(R.id.menu_shortcut).setVisible(installed && is_managed && app.isLaunchable() && app.enabled);
 		menu.findItem(R.id.menu_greenify).setVisible(installed && is_managed && app.enabled);
 
-		if (BuildConfig.DEBUG) menu.findItem(R.id.menu_suspend).setVisible(true).setTitle(app.isSuspended() ? "Unsuspend" : "Suspend");
+		if (BuildConfig.DEBUG) menu.findItem(R.id.menu_suspend).setVisible(! placeholder).setTitle(app.isSuspended() ? "Unsuspend" : "Suspend");
 	}
 
 	public void onPackagesUpdate(final Collection<IslandAppInfo> apps, final Menu menu) {
@@ -239,7 +275,7 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 			if (filters.test(app)) {
 				putApp(app.packageName, new AppViewModel(app));
 			} else removeApp(app.packageName, app.user);
-		updateActions(menu);
+		updateActions(menu, mCloneTipHidden);
 	}
 
 	private void removeApp(final String pkg, final UserHandle user) {
@@ -251,11 +287,11 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 		final Predicate<IslandAppInfo> filters = activeFilters();
 		for (final IslandAppInfo app : apps)
 			if (filters.test(app)) removeApp(app.packageName);
-		updateActions(menu);
+		updateActions(menu, mCloneTipHidden);
 	}
 
 	public void onItemLaunchIconClick(final Context context, final IslandAppInfo app) {
-		IslandAppControl.launch(context, this, app);
+		IslandAppControl.launch(context, app);
 	}
 
 	public boolean onActionClick(final Context context, final MenuItem item) {
@@ -266,8 +302,7 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 
 		final int id = item.getItemId();
 		if (id == R.id.menu_clone) {
-			requestToCloneApp(context, app);
-			clearSelection();
+			new IslandAppClones((FragmentActivity) context, this, app).request();
 		} else if (id == R.id.menu_freeze) {// Select the next alive app, or clear selection.
 			Analytics.$().event("action_freeze").with(ITEM_ID, pkg).send();
 
@@ -278,15 +313,17 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 			} else freezeApp(context, selection);
 		} else if (id == R.id.menu_unfreeze) {
 			Analytics.$().event("action_unfreeze").with(ITEM_ID, pkg).send();
-			IslandAppControl.unfreeze(this, app).thenAccept(result -> {
-				if (! result) return;
+			final Boolean unfrozen = IslandAppControl.unfreeze(app);
+			if (unfrozen == null) {
+				Toast.makeText(context, R.string.prompt_island_not_ready, Toast.LENGTH_LONG).show();
+			} else if (unfrozen == Boolean.TRUE) {
 				refreshAppStateAsSysBugWorkaround(context, app);
 				clearSelection();
-			});
+			}
 		} else if (id == R.id.menu_app_settings) {
 			IslandAppControl.launchExternalAppSettings(this, app);
 		} else if (id == R.id.menu_remove || id == R.id.menu_uninstall) {
-			IslandAppControl.requestRemoval(this, requireNonNull(Activities.findActivityFrom(context)), selection.info());
+			IslandAppControl.requestRemoval(requireNonNull(Activities.findActivityFrom(context)), selection.info());
 		} else if (id == R.id.menu_reinstall) {
 			onReinstallRequested(context);
 		} else if (id == R.id.menu_shortcut) {
@@ -294,83 +331,28 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 		} else if (id == R.id.menu_greenify) {
 			onGreenifyRequested(context);
 		} else if (id == R.id.menu_suspend) {
-			IslandAppControl.setSuspended(this, app, ! app.isSuspended()).thenAccept(done ->
-					Toast.makeText(context, done ? "Done" : "Failed", Toast.LENGTH_SHORT).show());
+			final boolean done = IslandAppControl.setSuspended(app, ! app.isSuspended());
+			Toast.makeText(context, done ? "Done" : "Failed", LENGTH_SHORT).show();
 		}
 		return true;
 	}
 
-	private void requestToCloneApp(final Context context, final IslandAppInfo app) {
-		final Map<UserHandle, String> targets = new HashMap<>(IslandNameManager.getAllNames(context));
-		if (targets.isEmpty()) throw new IllegalStateException("No Island");
-		final String pkg = app.packageName;
-		if (targets.size() == 1) {     // Single Island, no need to show menu
-			final boolean from_mainland = Users.isOwner(app.user); final UserHandle profile;
-			if (from_mainland && ! mAppListProvider.isInstalled(pkg, profile = targets.keySet().iterator().next())) {
-				requestToCloneAppToProfile(context, app, profile);
-			} else if (! from_mainland && ! mAppListProvider.isInstalled(pkg, Users.owner)) {
-				requestToCloneAppToMainland(context, pkg);
-			} else Toast.makeText(context, R.string.toast_already_cloned, Toast.LENGTH_LONG).show();
-			return;
-		}
-		targets.put(Users.owner, context.getString(R.string.tab_mainland));
-		final UserHandle[] profiles = targets.keySet().toArray(new UserHandle[0]);      // Including owner user
-		final String[] names = targets.values().toArray(new String[0]);
-
-		final Dialogs.Builder dialog = Dialogs.buildAlert(Activities.findActivityFrom(context), R.string.prompt_clone_app_to, 0);
-		final ArrayAdapter<String> adapter = new ArrayAdapter<String>(dialog.getContext(),
-				android.R.layout.select_dialog_item, android.R.id.text1, names) {
-
-			@Override public @NonNull View getView(final int position, @Nullable final View convertView, @NonNull final ViewGroup parent) {
-				final View view = super.getView(position, convertView, parent);
-				view.setEnabled(! mAppListProvider.isInstalled(pkg, profiles[position]));
-				return view;
-			}
-
-			@Override public boolean hasStableIds() { return true; }
-		};
-		dialog.setSingleChoiceItems(adapter, -1, (d, which) -> {
-			if (which == 0) requestToCloneAppToMainland(context, pkg);
-			else requestToCloneAppToProfile(context, app, profiles[which]);
-			d.dismiss();
-		}).show();
-	}
-
-	private static void requestToCloneAppToMainland(final Context context, final String pkg) {
-		Activities.startActivity(context, new Intent(Intent.ACTION_INSTALL_PACKAGE, Uri.fromParts("package", pkg, null)));
-	}
-
-	private void requestToCloneAppToProfile(final Context context, final IslandAppInfo app, final UserHandle profile) {
-		final String pkg = app.packageName;
-		final IslandAppInfo target = IslandAppListProvider.getInstance(context).get(pkg, profile);
-		if (target != null && target.isHiddenSysIslandAppTreatedAsDisabled()) {	// Frozen system app shown as disabled, just unfreeze it.
-			IslandAppControl.unfreezeInitiallyFrozenSystemApp(this, app).thenAccept(unfrozen -> {
-				if (unfrozen) Toast.makeText(context, context.getString(R.string.toast_successfully_cloned, app.getLabel()), Toast.LENGTH_SHORT).show();
-			});
-		} else if (target != null && target.isInstalled() && ! target.enabled) {	// Disabled system app is shown as "removed" (not cloned)
-			IslandAppControl.launchSystemAppSettings(this, target);
-			Toast.makeText(context, R.string.toast_enable_disabled_system_app, Toast.LENGTH_SHORT).show();
-		} else IslandAppClones.cloneApp(this, app, profile);
-	}
-
 	private void freezeApp(final Context context, final AppViewModel app_vm) {
 		final IslandAppInfo app = app_vm.info();
-		IslandAppControl.freeze(this, app).thenAccept(frozen -> {
-			if (frozen) {
-				// Select the next app for convenient continuous freezing.
-				final int next_index = indexOf(app_vm) + 1;
-				final AppViewModel next;
-				if (next_index < size() && (next = getAppAt(next_index)).state == AppViewModel.State.Alive) setSelection(next);
-				else clearSelection();
-			}
-			refreshAppStateAsSysBugWorkaround(context, app);
-		});
+		if (IslandAppControl.freeze(app)) {
+			// Select the next app for convenient continuous freezing.
+			final int next_index = indexOf(app_vm) + 1;
+			final AppViewModel next;
+			if (next_index < size() && (next = getAppAt(next_index)).state == AppViewModel.State.Alive) setSelection(next);
+			else clearSelection();
+		}
+		refreshAppStateAsSysBugWorkaround(context, app);
 	}
 
 	private void onShortcutRequested(final Context context) {
 		final AppViewModel app_vm = mSelection.getValue();
 		if (app_vm == null) return;
-		final IslandAppInfo app= app_vm.info();
+		final ApplicationInfo app= app_vm.info();
 		final String pkg = app.packageName;
 		Analytics.$().event("action_create_shortcut").with(ITEM_ID, pkg).send();
 		IslandAppShortcut.requestPin(context, app);
@@ -414,8 +396,7 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 	}
 
 	private static void reinstallSystemApp(final Context context, final IslandAppInfo app) {
-		final DevicePolicies policies = new DevicePolicies(context);
-		policies.execute(DevicePolicyManager::enableSystemApp, app.packageName);
+		new DevicePolicies(context).enableSystemApp(app.packageName);
 	}
 
 	/** Possible 10s delay before the change broadcast could be received (due to Android issue 225880), so we force a refresh immediately. */
@@ -431,8 +412,6 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 		final BottomSheetBehavior<View> bottom_sheet = BottomSheetBehavior.from(view);
 		bottom_sheet.setState(BottomSheetBehavior.STATE_EXPANDED);
 	}
-
-	@Override public @NonNull String getTag() { return TAG; }
 
 	/* Parcelable */
 
@@ -461,6 +440,7 @@ public class AppListViewModel extends BaseAppListViewModel<AppViewModel> {
 	private final boolean mOwnerUserManaged;
 	private Predicate<IslandAppInfo> mActiveFilters;		// The active composite filters
 	private final Handler mHandler = new Handler(Looper.getMainLooper());
+	private boolean mCloneTipHidden;
 
-	private static final String TAG = "Island.Apps";
+	private static final String TAG = "Island.ALVM";
 }

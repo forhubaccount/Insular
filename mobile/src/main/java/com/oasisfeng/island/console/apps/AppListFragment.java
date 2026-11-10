@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
-import android.os.SystemClock;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -52,22 +51,20 @@ public class AppListFragment extends Fragment {
 
 		IslandAppListProvider.getInstance(activity).registerObserver(mAppChangeObserver);
 		vm.mFeatured.visible.observe(this, visible -> invalidateOptionsMenu());
-		vm.mSelection.observe(this, s -> { invalidateOptionsMenu(); mViewModel.updateActions(mBinding.toolbar.getMenu()); });
-		vm.getFilterIncludeHiddenSystemApps().observe(this, filter -> mViewModel.updateAppList());
-		vm.getFilterText().observe(this, text -> mViewModel.updateAppList());
+		vm.mSelection.observe(this, s -> {
+			invalidateOptionsMenu();
+			mViewModel.updateActions(mBinding.toolbar.getMenu(), mUserGuide == null || mUserGuide.isCloneTipHidden());
+		});
+		vm.getFilterIncludeHiddenSystemApps().observe(this, filter -> mViewModel.updateAppList("filter_hidden_changed"));
+		vm.getFilterCanQueryAllPackages().observe(this, filter -> mViewModel.updateAppList("filter_query_all_changed"));
+		vm.getFilterCanManageExternalStorage().observe(this, filter -> mViewModel.updateAppList("filter_manage_storage_changed"));
+		vm.getFilterText().observe(this, text -> mViewModel.updateAppList("search_changed"));
 	}
 
 	@Override public void onResume() {
 		super.onResume();
-		if (SystemClock.uptimeMillis() - mTimeLastPaused < 1_000) return;	// Avoid updating for brief pausing caused by cross-profile functionality.
 		if (mViewModel.mFeatured.visible.getValue()) mViewModel.mFeatured.update(requireActivity());
 	}
-
-	@Override public void onPause() {
-		super.onPause();
-		mTimeLastPaused = SystemClock.uptimeMillis();
-	}
-	private long mTimeLastPaused;
 
 	@Override public void onStop() {
 		super.onStop();
@@ -109,6 +106,7 @@ public class AppListFragment extends Fragment {
 		mBinding.setFeatured(mViewModel.mFeatured);
 		mBinding.setGuide(mUserGuide);
 		mBinding.setLifecycleOwner(this);
+		AppExtraInfo.bind(mBinding.extras, mViewModel.mSelection);
 		activity.setActionBar(mBinding.actionbar);	// Must before attach
 		mViewModel.initializeTabs(activity, mBinding.tabs);
 
@@ -185,5 +183,5 @@ public class AppListFragment extends Fragment {
 	private @Nullable UserGuide mUserGuide;
 	private ServiceConnection mIslandManagerConnection;
 
-	private static final String TAG = "Island.AppsUI";
+	private static final String TAG = "Island.ALF";
 }

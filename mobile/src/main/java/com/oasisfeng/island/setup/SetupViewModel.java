@@ -40,6 +40,7 @@ import java.util.Optional;
 import static android.app.admin.DevicePolicyManager.ACTION_PROVISION_MANAGED_PROFILE;
 import static android.os.Build.VERSION.SDK_INT;
 import static android.os.Build.VERSION_CODES.O;
+import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_ID;
 import static com.oasisfeng.island.analytics.Analytics.Param.ITEM_NAME;
 
@@ -87,8 +88,8 @@ public class SetupViewModel implements Parcelable {
 			return buildErrorVM(R.string.setup_error_missing_managed_provisioning, reason("lack_managed_provisioning"));
 
 		// Check for incomplete provisioning, before DPM.isProvisioningAllowed() check which returns true in this case.
-		if (Users.profile == null) for (final int profile_id : IslandManager.getProfileIdsIncludingDisabled(context)) {
-			if (Users.isOwner(profile_id)) continue;
+		if (! Users.hasProfile()) for (final int profile_id : IslandManager.getProfileIdsIncludingDisabled(context)) {
+			if (Users.isParentProfile(profile_id)) continue;
 			final Optional<ComponentName> owner = DevicePolicies.getProfileOwnerAsUser(context, UserHandles.of(profile_id));
 			if (owner == null || ! owner.isPresent()) continue;
 			final ComponentName profile_owner = owner.get();
@@ -198,6 +199,7 @@ public class SetupViewModel implements Parcelable {
 		if (BuildConfig.DEBUG)			// TODO: Remove after testing
 			intent.putExtra(DevicePolicyManager.EXTRA_PROVISIONING_ACCOUNT_TO_MIGRATE, new Account("default_account", "miui_yellowpage"));
 		if (SDK_INT >= O) intent.putExtra(DevicePolicyManager.EXTRA_PROVISIONING_SKIP_USER_CONSENT, true);
+		if (SDK_INT >= TIRAMISU) intent.putExtra(DevicePolicyManager.EXTRA_PROVISIONING_ALLOW_OFFLINE, true);
 		return intent;
 	}
 
